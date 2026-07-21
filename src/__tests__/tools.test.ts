@@ -91,8 +91,9 @@ describe("tools", () => {
 
   it("rmux_create_session creates session with name", async () => {
     const mockPane = { sendText: vi.fn() }
+    const mockWindow = { pane: vi.fn().mockReturnValue({ sendText: vi.fn() }) }
     rmuxMocks.mockEnsureSession.mockResolvedValue({
-      pane: vi.fn().mockReturnValue(mockPane),
+      window: vi.fn().mockReturnValue(mockWindow),
     })
 
     const { createTools } = await import("../tools.js")
@@ -109,8 +110,9 @@ describe("tools", () => {
 
   it("rmux_create_session creates session with command", async () => {
     const mockPane = { sendText: vi.fn() }
+    const mockWindow2 = { pane: vi.fn().mockReturnValue(mockPane) }
     rmuxMocks.mockEnsureSession.mockResolvedValue({
-      pane: vi.fn().mockReturnValue(mockPane),
+      window: vi.fn().mockReturnValue(mockWindow2),
     })
 
     const { createTools } = await import("../tools.js")

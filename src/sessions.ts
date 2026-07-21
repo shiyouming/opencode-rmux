@@ -55,6 +55,13 @@ export class SessionManager {
       case "permission.replied":
         this.onPermissionReplied(event.properties)
         break
+      case "question.asked":
+        this.onQuestionAsked(event.properties)
+        break
+      case "question.replied":
+      case "question.rejected":
+        this.onQuestionReplied(event.properties)
+        break
     }
   }
 
@@ -172,7 +179,7 @@ export class SessionManager {
 
     if (status?.type === "busy" && this.activeSplits.has(sessionId)) {
       this.log("busy:", sessionId.slice(0, 8))
-      if (this.config.notifications?.done !== false) {
+      if (this.config.notifications.done !== false) {
         this.notify(`working: ${sessionId.slice(0, 8)}`)
       }
     }
@@ -201,6 +208,23 @@ export class SessionManager {
     const id = this.getPermissionRequestID(_properties)
     if (id) {
       this.pendingPermissions.delete(id)
+    }
+  }
+
+  private onQuestionAsked(_properties: Record<string, any>): void {
+    const id = this.getPermissionRequestID(_properties)
+    if (id && !this.pendingQuestions.has(id)) {
+      this.pendingQuestions.add(id)
+      if (this.config.notifications?.question !== false) {
+        this.notify(`question: ${_properties.title ?? id.slice(0, 8)}`)
+      }
+    }
+  }
+
+  private onQuestionReplied(_properties: Record<string, any>): void {
+    const id = this.getPermissionRequestID(_properties)
+    if (id) {
+      this.pendingQuestions.delete(id)
     }
   }
 

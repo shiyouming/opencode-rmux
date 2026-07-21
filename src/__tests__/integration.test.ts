@@ -264,7 +264,7 @@ describe("Integration: Tools + real RMUXManager", () => {
     }, {})
 
     expect(result).toContain("npm run dev")
-    expect(mocks.mockSession.pane).toHaveBeenCalledWith(0, 0)
+    expect(mocks.mockSession.window).toHaveBeenCalledWith(0)
   })
 
   it("rmux_send_keys sends to session:target", async () => {

@@ -87,7 +87,7 @@ File: `~/.config/opencode/opencode-rmux.json` (XDG-compatible)
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `splits` | boolean | `false` | Enable subagent pane creation |
+| `splits` | boolean | `true` | Enable subagent pane creation |
 | `splitSize` | string | `"30%"` | Subagent pane width (`"30%"`, `"40%"`, `"300px"`) |
 | `keepPaneOnIdle` | boolean | `false` | Keep pane open when subagent completes |
 | `maxPanes` | number | `4` | Max subagent panes (oldest recycled when full) |

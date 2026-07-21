@@ -42,20 +42,21 @@ function findPortViaNetstat(pid: number): string | null {
 }
 
 function findPortViaPowerShell(pid: number): string | null {
-  try {
-    const script = `Get-NetTCPConnection -OwningProcess ${pid} -State Listen -ErrorAction SilentlyContinue | Select-Object -ExpandProperty LocalPort -First 1`
-    const out = execSync(
-      `powershell -NoProfile -Command "${script}"`,
-      { encoding: "utf-8", timeout: 5000 },
-    )
-    const trimmed = out.trim()
-    if (trimmed && /^\d+$/.test(trimmed)) {
-      return trimmed
+  const script = `Get-NetTCPConnection -OwningProcess ${pid} -State Listen -ErrorAction SilentlyContinue | Select-Object -ExpandProperty LocalPort -First 1`
+  for (const shell of ["pwsh", "powershell"]) {
+    try {
+      const out = execSync(
+        `${shell} -NoProfile -Command "${script}"`,
+        { encoding: "utf-8", timeout: 5000 },
+      )
+      const trimmed = out.trim()
+      if (trimmed && /^\d+$/.test(trimmed)) {
+        return trimmed
+      }
+    } catch {
     }
-    return null
-  } catch {
-    return null
   }
+  return null
 }
 
 function findPort(pid: number): string | null {
