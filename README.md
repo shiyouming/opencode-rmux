@@ -253,4 +253,4 @@ MIT
 
 This plugin was built entirely through AI pair programming — [Opencode](https://opencode.ai) + **DeepSeek V4 Flash**. Every line of code was written by AI agents, and their work was managed in real-time by the plugin itself. It's a meta showcase of the tool it provides.
 
-**Why `opencode-rmux`?** The author is a daily user of both Opencode and RMUX on Windows. [opencode-cmux](https://github.com/0xCaso/opencode-cmux) only works on macOS. We needed the same subagent pane experience on Windows — so we built it.
+**Why `opencode-rmux`?** The terminal multiplexer plugin ecosystem for Opencode has been fragmented by platform — `opencode-cmux` is macOS-only, tmux plugins exclude Windows users without WSL. `opencode-rmux` unifies the experience across Windows, macOS, and Linux with a modern TypeScript SDK, giving every Opencode user the same subagent pane management regardless of their operating system.

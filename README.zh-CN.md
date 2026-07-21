@@ -243,4 +243,4 @@ MIT
 
 这个插件的每一行代码都由 AI 编程助手编写 —— [Opencode](https://opencode.ai) + **DeepSeek V4 Flash**。有趣的是，AI 子代理在写代码的过程中，它们的每一个动作都被这个插件自己实时管理着。这是一个"自举"的元展示项目。
 
-**为什么写 `opencode-rmux`？** 作者日常使用 Windows，需要 Opencode 的子代理面板功能。[opencode-cmux](https://github.com/0xCaso/opencode-cmux) 只支持 macOS。为了让 Windows 用户也能享受同样的体验，我们写了这个插件。
+**为什么写 `opencode-rmux`？** Opencode 的终端复用器插件生态长期被平台割裂——`opencode-cmux` 仅限 macOS，各类 tmux 插件在 Windows 上只能通过 WSL 运行。`opencode-rmux` 用现代的 TypeScript SDK，在 Windows、macOS、Linux 上提供一致的子代理面板体验，让每一位 Opencode 用户不再受操作系统限制。
