@@ -157,6 +157,13 @@ Package is registered as `opencode-rmux` on npm.
 - CI: GitHub Actions runs typecheck + test + build on PR
 - Release: tag triggers publish workflow
 
+## TODO / Future Ideas
+
+- [ ] Publish to npm, push to GitHub, submit to opencode ecosystem
+- [ ] Add `funding` field in package.json (GitHub Sponsors)
+- [ ] Add WeChat/Alipay QR code to README.zh-CN.md for donations
+- [ ] Promote: write article about "AI-built plugin managing AI agents" (meta story)
+
 ## Important Links
 
 - [RMUX Docs](https://rmux.io)
