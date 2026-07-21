@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json.schemastore.org/package.json",
+  "name": "opencode-rmux",
+  "version": "1.0.0",
+  "description": "Opencode plugin that bridges AI coding agent sessions with RMUX terminal multiplexer — cross-platform subagent pane management and AI-driven RMUX control tools",
+  "type": "module",
+  "main": "dist/index.js",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "prepublishOnly": "npm run typecheck && npm run test && npm run build"
+  },
+  "keywords": [
+    "opencode",
+    "opencode-plugin",
+    "rmux",
+    "multiplexer",
+    "terminal"
+  ],
+  "author": "ShiYouming",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ShiYouming/opencode-rmux.git"
+  },
+  "bugs": {
+    "url": "https://github.com/ShiYouming/opencode-rmux/issues"
+  },
+  "homepage": "https://github.com/ShiYouming/opencode-rmux#readme",
+  "peerDependencies": {
+    "@opencode-ai/plugin": ">=1.0.0"
+  },
+  "dependencies": {
+    "@rmux/sdk": "^0.6.5"
+  },
+  "devDependencies": {
+    "@opencode-ai/plugin": "^1.2.15",
+    "@types/node": "^22.14.1",
+    "typescript": "^5.8.3",
+    "vitest": "^4.1.10"
+  }
+}
