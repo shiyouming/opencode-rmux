@@ -231,3 +231,11 @@ npm run prepublishOnly # typecheck + test + build
 ## License
 
 MIT
+
+---
+
+## About This Project
+
+This plugin was built entirely through AI pair programming — [Opencode](https://opencode.ai) + **DeepSeek V4 Flash**. Every line of code was written by AI agents, and their work was managed in real-time by the plugin itself. It's a meta showcase of the tool it provides.
+
+**Why `opencode-rmux`?** The author is a daily user of both Opencode and RMUX on Windows. [opencode-cmux](https://github.com/0xCaso/opencode-cmux) only works on macOS. We needed the same subagent pane experience on Windows — so we built it.

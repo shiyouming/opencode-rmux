@@ -227,3 +227,11 @@ npm test               # 运行测试
 ## 协议
 
 MIT
+
+---
+
+## 关于本项目
+
+这个插件的每一行代码都由 AI 编程助手编写 —— [Opencode](https://opencode.ai) + **DeepSeek V4 Flash**。有趣的是，AI 子代理在写代码的过程中，它们的每一个动作都被这个插件自己实时管理着。这是一个"自举"的元展示项目。
+
+**为什么写 `opencode-rmux`？** 作者日常使用 Windows，需要 Opencode 的子代理面板功能。[opencode-cmux](https://github.com/0xCaso/opencode-cmux) 只支持 macOS。为了让 Windows 用户也能享受同样的体验，我们写了这个插件。
