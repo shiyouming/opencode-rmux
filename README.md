@@ -17,6 +17,18 @@ Opencode plugin that bridges AI coding agent sessions with [RMUX](https://rmux.i
 - [Opencode](https://opencode.ai) ≥ 1.0
 - [RMUX](https://rmux.io) binary installed and on `$PATH`
 
+Install Opencode:
+
+```bash
+npm install -g opencode-ai
+```
+
+Verify:
+
+```bash
+opencode --version
+```
+
 Install RMUX:
 
 | Platform | Command |

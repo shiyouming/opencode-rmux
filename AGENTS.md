@@ -30,6 +30,8 @@ opencode-rmux/
 ├── PLAN.md
 ├── README.md
 ├── LICENSE
+├── .gitattributes
+├── .github/workflows/ci.yml
 ├── .github/workflows/release.yml
 └── .github/dependabot.yml
 ```
@@ -53,6 +55,7 @@ On `session.status` idle (subagent completes), the pane is automatically closed 
 | `session.deleted` (fallback) | Close pane |
 | `session.error` (tracked) | Close pane, notify error |
 | `permission.asked` / `permission.replied` | Toggle pending-permission state |
+| `question.asked` / `question.replied` / `question.rejected` | Toggle pending-question state |
 
 Note: `session.deleted` does NOT fire for subagent sessions — cleanup relies on `session.status` idle.
 
@@ -108,6 +111,8 @@ File: `~/.config/opencode/opencode-rmux.json` (XDG-compatible)
 
 When `maxPanes` is reached, the oldest pane is recycled (force-closed) to make room for the new subagent, ensuring the right panel never exceeds the limit. With `keepPaneOnIdle: false` (default), panes auto-close on `session.status` idle before reaching the limit.
 
+Pane heights are automatically balanced using `resize-pane` after each split.
+
 ## Implementation Notes
 
 - Cleanup is driven by `session.status` idle (not `session.deleted`), since subagents don't emit delete events
@@ -116,6 +121,7 @@ When `maxPanes` is reached, the oldest pane is recycled (force-closed) to make r
 - Window pane indices are volatile (re-indexed after close) — uses `window.panes()` for always-current layout
 - All RMUX SDK calls wrapped in try/catch with graceful fallback
 - Serialized via `enqueueSplitOp` to avoid race conditions
+- Right-side pane heights balanced via `balanceRightPanes()` using `resize-pane` after each split
 
 ## Code Conventions
 
@@ -129,7 +135,7 @@ When `maxPanes` is reached, the oldest pane is recycled (force-closed) to make r
 ## Build & Test
 
 ```bash
-bun install                    # install dependencies
+npm install                    # install dependencies
 npx tsc --noEmit               # typecheck
 npx vitest run                 # test
 npx tsc                        # build dist/
@@ -146,7 +152,7 @@ Package is registered as `opencode-rmux` on npm.
 
 ## GitHub Repository
 
-- Repo: `https://github.com/<user>/opencode-rmux`
+- Repo: `https://github.com/ShiYouming/opencode-rmux`
 - Issues: bug reports, feature requests
 - CI: GitHub Actions runs typecheck + test + build on PR
 - Release: tag triggers publish workflow
