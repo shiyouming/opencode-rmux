@@ -79,7 +79,6 @@ rmux --version
 ```bash
 # 下载源码
 git clone https://github.com/ShiYouming/opencode-rmux.git
-# 或国内加速：git clone https://gitee.com/ShiYouming/opencode-rmux.git
 cd opencode-rmux
 
 # 安装依赖并构建
@@ -239,11 +238,6 @@ npm test               # 运行测试
 MIT
 
 ---
-
-## 仓库地址
-
-- GitHub：<https://github.com/ShiYouming/opencode-rmux>
-- Gitee：<https://gitee.com/ShiYouming/opencode-rmux>（国内镜像，访问更快）
 
 ## 关于本项目
 
