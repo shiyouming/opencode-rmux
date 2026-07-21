@@ -1,6 +1,21 @@
 # opencode-rmux
 
-Opencode plugin that bridges AI coding agent sessions with [RMUX](https://rmux.io) terminal multiplexer — cross-platform subagent pane management and AI-driven RMUX control tools.
+**The only cross-platform opencode plugin for terminal multiplexer subagent pane management.** Works on **Windows**, **macOS**, and **Linux** — natively, no WSL required.
+
+Bridges AI coding agent sessions with [RMUX](https://rmux.io) terminal multiplexer — real-time subagent pane management and AI-driven RMUX control tools.
+
+---
+
+## Why opencode-rmux?
+
+|                          | opencode-cmux | opencode-tmux plugins | **opencode-rmux** |
+|--------------------------|:---:|:---:|:---:|
+| **Windows**              | ❌  | ⚠️ WSL | ✅ Native |
+| **macOS**                | ✅  | ✅ | ✅ Native |
+| **Linux**                | ❌  | ✅ | ✅ Native |
+| **TypeScript SDK**       | ❌ CLI | ❌ CLI | ✅ @rmux/sdk |
+| **Subagent Pane Mgmt**   | ✅  | ✅ | ✅ |
+| **AI Control Tools**     | ❌  | ⚠️ Limited | ✅ 5 tools |
 
 ---
 
@@ -8,7 +23,7 @@ Opencode plugin that bridges AI coding agent sessions with [RMUX](https://rmux.i
 
 - **Subagent Pane Management** — When Opencode spawns subagents, automatically creates RMUX panes on the right side showing real-time subagent work
 - **AI Custom Tools** — 5 tools that let the AI control RMUX directly
-- **Cross-Platform** — Works on **Windows**, **macOS**, and **Linux**
+- **Cross-Platform** — Native support for **Windows**, **macOS**, and **Linux**
 
 ---
 

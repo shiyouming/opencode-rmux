@@ -1,5 +1,7 @@
 # opencode-rmux
 
+**唯一一个跨平台支持 Windows 原生运行的 Opencode 终端复用器插件。** 不需要 WSL，Windows / macOS / Linux 原生运行。
+
 在 Opencode 右侧实时查看子代理的工作内容，并让 AI 直接控制 RMUX 终端。
 
 ---
@@ -11,7 +13,16 @@ Opencode 插件。装了这个插件后：
 - **子代理面板** — Opencode 创建子代理时，自动在 RMUX 右侧开一个面板，实时显示子代理在做什么
 - **AI 控制工具** — AI 可以自己查看 RMUX 会话、创建新会话、发送按键、捕获屏幕内容
 
-支持 Windows / macOS / Linux。
+### vs 同类插件
+
+|                | opencode-cmux | opencode-tmux | **opencode-rmux** |
+|----------------|:---:|:---:|:---:|
+| **Windows**    | ❌  | ⚠️ 需 WSL | ✅ 原生 |
+| **macOS**      | ✅  | ✅ | ✅ 原生 |
+| **Linux**      | ❌  | ✅ | ✅ 原生 |
+| **TypeScript SDK** | ❌ 命令行 | ❌ 命令行 | ✅ @rmux/sdk |
+| **子代理面板**  | ✅  | ✅ | ✅ |
+| **AI 控制工具** | ❌  | ⚠️ 有限 | ✅ 5 个 |
 
 ---
 
