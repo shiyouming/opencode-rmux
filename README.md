@@ -1,5 +1,7 @@
 # opencode-rmux
 
+[![Built on RMUX](https://img.shields.io/badge/built%20on-RMUX-000000?style=flat-square)](https://rmux.io)
+
 **The only cross-platform opencode plugin for terminal multiplexer subagent pane management.** Works on **Windows**, **macOS**, and **Linux** — natively, no WSL required.
 
 Bridges AI coding agent sessions with [RMUX](https://rmux.io) terminal multiplexer — real-time subagent pane management and AI-driven RMUX control tools.
