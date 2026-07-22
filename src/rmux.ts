@@ -69,7 +69,8 @@ export class RMUXManager {
           direction: "h", size, ...(shellCommand ? { shellCommand } : {}),
         })
       }
-      return await panes[panes.length - 1].split({
+      const rightPanes = await mainWindow.panes()
+      return await rightPanes[rightPanes.length - 1].split({
         direction: "v", ...(shellCommand ? { shellCommand } : {}),
       })
     } catch {

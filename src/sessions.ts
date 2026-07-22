@@ -87,15 +87,15 @@ export class SessionManager {
     if (this.config.debug) console.error("[opencode-rmux]", ...args)
   }
 
-  private removeAndClose(sessionId: string, force = false): void {
+  private async removeAndClose(sessionId: string, force = false): Promise<void> {
     const target = this.activeSplits.get(sessionId)
-    if (!target) return
+    if (!target || target === "pending") return
     if (!force && this.config.keepPaneOnIdle) {
       this.log("keepPaneOnIdle: skipping close for", sessionId.slice(0, 8))
       return
     }
     this.activeSplits.delete(sessionId)
-    this.rmux.cmd("kill-pane", "-t", target).catch(() => {})
+    await this.rmux.cmd("kill-pane", "-t", target).catch(() => {})
   }
 
   private async findOrCreateSession(): Promise<string | null> {
@@ -121,21 +121,27 @@ export class SessionManager {
     if (!(await serverAvailable(url))) return
 
     await this.enqueueSplitOp(async () => {
-      if (this.activeSplits.has(info.id)) return
+      if (this.activeSplits.has(info.id)) {
+        if (this.activeSplits.get(info.id) === "pending") return
+        this.activeSplits.delete(info.id)
+      }
 
       try {
-        if (this.activeSplits.size >= this.config.maxPanes) {
+        this.activeSplits.set(info.id, "pending")
+
+        const realPanes = [...this.activeSplits.values()].filter(v => v !== "pending").length
+        if (realPanes >= this.config.maxPanes) {
           const oldestId = this.activeSplits.keys().next().value
           if (oldestId) {
             this.log("maxPanes reached, recycling:", oldestId.slice(0, 8))
-            this.removeAndClose(oldestId, true)
+            await this.removeAndClose(oldestId, true)
           }
         }
 
         const sessionName = await this.findOrCreateSession()
-        if (!sessionName) return
+        if (!sessionName) { this.activeSplits.delete(info.id); return }
         const session = await this.rmux.getSession(sessionName)
-        if (!session) return
+        if (!session) { this.activeSplits.delete(info.id); return }
 
         const attachCmd = `opencode attach ${url} --session ${info.id}`
         const pane = await this.rmux.createAgentPane(session, attachCmd, this.config.splitSize)
@@ -146,6 +152,7 @@ export class SessionManager {
           this.notify(`subagent spawned: ${info.id.slice(0, 8)}`)
         }
       } catch {
+        this.activeSplits.delete(info.id)
       }
     })
   }
@@ -153,10 +160,12 @@ export class SessionManager {
   private onSessionDeleted(properties: Record<string, any>): void {
     const sessionId = properties.info?.id ?? properties.sessionID
     if (sessionId && this.activeSplits.has(sessionId)) {
-      this.removeAndClose(sessionId)
-      if (this.config.notifications?.done !== false) {
-        this.notify(`done: ${sessionId.slice(0, 8)}`)
-      }
+      this.enqueueSplitOp(async () => {
+        await this.removeAndClose(sessionId)
+        if (this.config.notifications?.done !== false) {
+          this.notify(`done: ${sessionId.slice(0, 8)}`)
+        }
+      })
     }
   }
 
@@ -166,10 +175,12 @@ export class SessionManager {
 
     const sessionId = properties.sessionID ?? properties.info?.id
     if (sessionId && this.activeSplits.has(sessionId)) {
-      this.removeAndClose(sessionId)
-      if (this.config.notifications?.error !== false) {
-        this.notify(`error: ${sessionId.slice(0, 8)}`)
-      }
+      await this.enqueueSplitOp(async () => {
+        await this.removeAndClose(sessionId)
+        if (this.config.notifications?.error !== false) {
+          this.notify(`error: ${sessionId.slice(0, 8)}`)
+        }
+      })
     }
   }
 
@@ -179,18 +190,17 @@ export class SessionManager {
 
     if (status?.type === "busy" && this.activeSplits.has(sessionId)) {
       this.log("busy:", sessionId.slice(0, 8))
-      if (this.config.notifications.done !== false) {
-        this.notify(`working: ${sessionId.slice(0, 8)}`)
-      }
     }
 
     if (status?.type === "idle" && this.activeSplits.has(sessionId)) {
       if (this.hasPendingInput()) return
       this.log("idle:", sessionId.slice(0, 8), "keepPaneOnIdle:", this.config.keepPaneOnIdle)
-      this.removeAndClose(sessionId)
-      if (this.config.notifications?.done !== false) {
-        this.notify(`done: ${sessionId.slice(0, 8)}`)
-      }
+      await this.enqueueSplitOp(async () => {
+        await this.removeAndClose(sessionId)
+        if (this.config.notifications?.done !== false) {
+          this.notify(`done: ${sessionId.slice(0, 8)}`)
+        }
+      })
     }
   }
 
