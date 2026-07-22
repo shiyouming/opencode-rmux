@@ -40,14 +40,26 @@
 
 ### 环境要求
 
+**Opencode**
 ```bash
-# Opencode
 npm install -g opencode-ai
+```
 
-# RMUX —— 按系统选择
-winget install rmux          # Windows
-brew install rmux            # macOS
-curl -fsSL https://rmux.io/install.sh | sh  # Linux
+**RMUX**
+
+Windows
+```bash
+winget install rmux
+```
+
+macOS
+```bash
+brew install rmux
+```
+
+Linux
+```bash
+curl -fsSL https://rmux.io/install.sh | sh
 ```
 
 ### 安装插件

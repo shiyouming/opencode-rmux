@@ -40,14 +40,26 @@
 
 ### Prerequisites
 
+**Opencode**
 ```bash
-# Opencode
 npm install -g opencode-ai
+```
 
-# RMUX — choose your platform
-winget install rmux                           # Windows
-brew install rmux                             # macOS
-curl -fsSL https://rmux.io/install.sh | sh     # Linux
+**RMUX**
+
+Windows
+```bash
+winget install rmux
+```
+
+macOS
+```bash
+brew install rmux
+```
+
+Linux
+```bash
+curl -fsSL https://rmux.io/install.sh | sh
 ```
 
 ### Plugin
