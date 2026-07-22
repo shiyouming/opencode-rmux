@@ -20,7 +20,8 @@
     "access": "public"
   },
   "files": [
-    "dist"
+    "dist",
+    "README.en.md"
   ],
   "scripts": {
     "build": "tsc",
