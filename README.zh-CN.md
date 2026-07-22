@@ -22,99 +22,75 @@
 ## 功能
 
 - **子代理面板** — Opencode 创建子代理时，自动在 RMUX 右侧开一个面板，实时显示子代理在做什么
-- **AI 控制工具** — AI 可以自己查看 RMUX 会话、创建新会话、发送按键、捕获屏幕内容
+- **AI 控制工具** — 5 个工具让 AI 直接控制 RMUX
+- **跨平台** — Windows / macOS / Linux 原生运行
 
 ---
 
-## 一、安装前提
+## 环境要求
 
-在安装插件之前，你需要先装好两个东西：
+- [Opencode](https://opencode.ai) ≥ 1.0
+- [RMUX](https://rmux.io) 已安装并在 `$PATH` 中
 
-### 1. Opencode
+安装 Opencode：
 
 ```bash
 npm install -g opencode-ai
-```
-
-验证安装：
-
-```bash
 opencode --version
 ```
 
-### 2. RMUX
+安装 RMUX：
 
-| 系统 | 安装命令 |
-|------|----------|
+| 系统 | 命令 |
+|------|------|
 | Windows | `winget install rmux` |
 | macOS | `brew install rmux` |
 | Linux | `curl -fsSL https://rmux.io/install.sh \| sh` |
 
-验证安装：
-
-```bash
-rmux --version
-```
+验证：`rmux --version`
 
 ---
 
-## 三、安装插件
+## 安装
 
-### 方式一：自动安装（推荐）
+### 自动安装（推荐）
 
-编辑 Opencode 配置文件：
-
-**Windows**: `%USERPROFILE%\.config\opencode\opencode.jsonc`
-**macOS/Linux**: `~/.config/opencode/opencode.json`
+编辑 Opencode 配置文件（Windows: `%USERPROFILE%\.config\opencode\opencode.jsonc`，macOS/Linux: `~/.config/opencode/opencode.json`）：
 
 ```jsonc
 {
-  "plugin": ["opencode-rmux"],
-  // ... 其他配置
+  "plugin": ["opencode-rmux"]
 }
 ```
 
-重启 Opencode，它会自动下载安装。
+重启 Opencode，自动下载安装。
 
-### 方式二：手动安装（开发用）
+### 手动安装（开发用）
 
 ```bash
-# 下载源码
 git clone https://github.com/ShiYouming/opencode-rmux.git
 cd opencode-rmux
-
-# 安装依赖并构建
 npm install
 npm run build
 
-# Windows：复制到插件目录
+# Windows
 copy dist\index.js "%USERPROFILE%\.config\opencode\plugins\rmux.js"
 
-# macOS/Linux：创建软链接
+# macOS/Linux
 ln -sf "$PWD/dist/index.js" ~/.config/opencode/plugins/rmux.js
-```
-
-然后在 `opencode.jsonc` 中配置（**不要**再用 `plugin` 字段，否则会重复加载）：
-
-```jsonc
-{
-  // 不需要 "plugin" 字段
-}
 ```
 
 ---
 
-## 三、启动方式
+## 启动方式
 
-**必须**使用 `--port` 参数启动 Opencode，子代理面板才能正常工作：
+**必须**使用 `--port` 参数启动 Opencode：
 
 ```bash
 opencode --port 0
 ```
 
-`--port 0` 表示自动分配端口，每次启动端口都不同，但插件会自动发现。
-
-如果你想固定端口：
+`--port 0` 自动分配端口，插件会自动发现。也可指定固定端口：
 
 ```bash
 opencode --port 14096
@@ -122,16 +98,11 @@ opencode --port 14096
 
 ---
 
-## 四、配置
+## 配置
 
-配置文件位置：
+配置文件：`~/.config/opencode/opencode-rmux.json`
 
-**Windows**: `%USERPROFILE%\.config\opencode\opencode-rmux.json`
-**macOS/Linux**: `~/.config/opencode/opencode-rmux.json`
-
-文件不存在时全部使用默认值，即装即用，**零配置**。
-
-### 全部选项
+文件不存在或格式错误时全部使用默认值，**零配置即可使用**。
 
 ```json
 {
@@ -151,74 +122,88 @@ opencode --port 14096
 
 | 选项 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
-| `splits` | boolean | `true` | 开启后才会创建子代理面板 |
-| `splitSize` | string | `"30%"` | 右侧面板宽度。例：`"30%"` `"50%"` `"300px"` |
-| `keepPaneOnIdle` | boolean | `false` | 子代理完成后是否保留面板，不自动关闭 |
-| `maxPanes` | number | `4` | 右侧最多几个面板，超了回收最旧的那个 |
-| `debug` | boolean | `false` | 开启后插件日志输出到 stderr，排查问题用 |
-| `notifications.done` | boolean | `true` | 子代理完成时状态栏提示 |
-| `notifications.permission` | boolean | `true` | Opencode 请求权限时状态栏提示 |
-| `notifications.question` | boolean | `true` | AI 提问时状态栏提示 |
-| `notifications.error` | boolean | `true` | 出错时状态栏提示 |
+| `splits` | boolean | `true` | 启用子代理面板创建 |
+| `splitSize` | string | `"30%"` | 右侧面板宽度，如 `"30%"` `"50%"` `"300px"` |
+| `keepPaneOnIdle` | boolean | `false` | 子代理完成后保留面板，不自动关闭 |
+| `maxPanes` | number | `4` | 右侧面板上限，超限回收最旧的 |
+| `debug` | boolean | `false` | 调试日志到 stderr |
+| `notifications.done` | boolean | `true` | 子代理完成通知 |
+| `notifications.permission` | boolean | `true` | 权限请求通知 |
+| `notifications.question` | boolean | `true` | AI 提问通知 |
+| `notifications.error` | boolean | `true` | 错误通知 |
 
-### 常用配置示例
+### 常用示例
 
-**只想看面板，不要通知打扰：**
-
+**关闭完成通知，保留面板：**
 ```json
-{
-  "splits": true,
-  "notifications": { "done": false }
-}
+{ "splits": true, "keepPaneOnIdle": true, "notifications": { "done": false } }
 ```
 
-**右侧宽一点，面板保留不关：**
-
+**更宽的右侧面板：**
 ```json
-{
-  "splits": true,
-  "splitSize": "50%",
-  "keepPaneOnIdle": true
-}
+{ "splits": true, "splitSize": "50%" }
 ```
 
 ---
 
-## 五、效果说明
-
-启动 Opencode 后，窗口布局如下：
+## 布局
 
 ```
 +----------+------+
 |          | 代理1 |
-|  主对话   |------|
-|  区域     | 代理2 |
-|  70%     |------|
+|  主区域   |------|
+|  70%     | 代理2 |
+|          |------|
 |          | 代理3 |
 +----------+------+
 ```
 
-- 创建子代理 → 右侧自动开一个面板
-- 子代理在做什么 → 右侧面板实时显示
-- 子代理完成 → 面板自动关闭（如果 `keepPaneOnIdle` 为 `false`）
-- 子代理太多 → 自动回收最旧的（由 `maxPanes` 控制）
+- 首个代理：水平分屏（右侧面板，默认 30%）
+- 后续代理：右侧垂直堆叠，高度自动平衡
+- 达到 `maxPanes` 上限：回收最旧面板
+- `keepPaneOnIdle: false`：子代理完成自动关闭
 
 ---
 
-## 六、常见问题
+## 工具列表
+
+| 工具 | 说明 |
+|------|------|
+| `rmux_list_sessions` | 列出所有 RMUX 会话 |
+| `rmux_create_session` | 创建新会话（可选启动命令） |
+| `rmux_send_keys` | 向面板发送按键 |
+| `rmux_capture` | 捕获面板文字内容 |
+| `rmux_wait_for_text` | 等待面板中出现指定文本 |
+
+---
+
+## 工作原理
+
+| 事件 | 行为 |
+|------|------|
+| `session.created` + parentID | 创建右侧面板，运行 `opencode attach` |
+| `session.status` busy | 状态栏通知 "working" |
+| `session.status` idle | 关闭面板，状态栏通知 "done" |
+| `session.error` | 关闭面板，提示错误 |
+| `permission.asked` / `permission.replied` | 权限等待状态追踪 |
+| `question.asked` / `question.replied` / `question.rejected` | 提问等待状态追踪 |
+
+---
+
+## 常见问题
 
 ### 右侧面板没有出现？
 
-1. 确认你是用 `opencode --port 0` 启动的
-2. 确认配置文件里 `"splits": true`
-3. 确认 RMUX 已经运行（`rmux list-sessions` 有输出）
+1. 确认用 `opencode --port 0` 启动
+2. 确认 `"splits": true`
+3. 确认 RMUX 在运行（`rmux list-sessions` 有输出）
 
 ### 面板显示 `Unable to connect`？
 
-- 确认你用 `--port` 参数启动了 Opencode
-- 如果用了 `--port 0`，插件会自动发现端口，等几秒再试
+- 确认用了 `--port` 参数
+- `--port 0` 时插件需要几秒发现端口
 
-### 不想用面板了？
+### 禁用面板？
 
 ```json
 { "splits": false }
@@ -226,7 +211,7 @@ opencode --port 14096
 
 ---
 
-## 七、开发相关
+## 开发
 
 ```bash
 npm install            # 安装依赖
@@ -243,6 +228,6 @@ MIT
 
 ## 关于本项目
 
-这个插件的每一行代码都由 AI 编程助手编写 —— [Opencode](https://opencode.ai) + **DeepSeek V4 Flash**。有趣的是，AI 子代理在写代码的过程中，它们的每一个动作都被这个插件自己实时管理着。这是一个"自举"的元展示项目。
+这个插件的每一行代码都由 AI 编程助手编写 —— [Opencode](https://opencode.ai) + **DeepSeek V4 Flash**。AI 子代理在编写代码的过程中，它们的每一个动作都被这个插件自己实时管理着。这是一个"自举"的元展示项目。
 
-**为什么写 `opencode-rmux`？** Opencode 的终端复用器插件生态长期被平台割裂——`opencode-cmux` 仅限 macOS，各类 tmux 插件在 Windows 上只能通过 WSL 运行。`opencode-rmux` 用现代的 TypeScript SDK，在 Windows、macOS、Linux 上提供一致的子代理面板体验，让每一位 Opencode 用户不再受操作系统限制。
+**为什么写 `opencode-rmux`？** 终端复用器插件生态长期被平台割裂——`opencode-cmux` 仅限 macOS，各类 tmux 插件在 Windows 上只能通过 WSL 运行。`opencode-rmux` 用现代的 TypeScript SDK，在 Windows、macOS、Linux 上提供一致的子代理面板体验，让每一位 Opencode 用户不再受操作系统限制。
