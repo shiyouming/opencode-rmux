@@ -64,13 +64,24 @@ curl -fsSL https://rmux.io/install.sh | sh
 
 ### 安装插件
 
-编辑 Opencode 配置文件 `~/.config/opencode/opencode.jsonc`：
+两种方式任选一种：
 
+**方式一：CLI 命令（推荐）**
+```bash
+opencode plugin opencode-rmux -g
+```
+自动下载 npm 包并写入全局配置。
+
+**方式二：手动配置**
+编辑 `~/.config/opencode/opencode.jsonc`，添加：
 ```jsonc
 { "plugin": ["opencode-rmux"] }
 ```
 
-重启 Opencode，自动下载安装。
+无论哪种方式，重启 Opencode 后自动从 npm 下载安装。
+
+> **注意：插件不会自动更新。** Opencode 永久缓存 npm 插件，不会在启动时检查新版本。
+> 更新方法见下方「更新插件」。
 
 ### 启动
 
@@ -79,6 +90,22 @@ opencode --port 0
 ```
 
 `--port 0` 自动分配端口。插件自动发现并连接。也可指定固定端口如 `--port 14096`。
+
+### 更新插件
+
+Opencode **不会**自动检查或更新 npm 插件，且 `opencode plugin <模块名> -f` 的 `-f` 仅强制更新配置文件条目，**不会重新下载 npm 包**。唯一可靠的更新方式：清除缓存后重启。
+
+```bash
+# Linux / macOS
+rm -rf ~/.cache/opencode/packages/opencode-rmux
+
+# Windows PowerShell
+Remove-Item -Recurse -Force "$env:LOCALAPPDATA\opencode\cache\packages\opencode-rmux"
+```
+
+重启 Opencode 后自动重新下载最新版。
+
+> 如尚未在 `opencode.jsonc` 中配置插件，清除缓存后执行 `opencode plugin opencode-rmux -g` 添加配置，再重启。
 
 ---
 
@@ -153,7 +180,7 @@ opencode --port 0
 | 事件 | 行为 |
 |------|------|
 | `session.created` + parentID | 创建右侧面板，执行 `opencode attach` 连接子代理会话 |
-| `session.status` busy | 状态栏显示 "working" |
+| `session.status` busy | 调试日志记录 busy |
 | `session.status` idle | 关闭面板，状态栏显示 "done" |
 | `session.error` | 关闭面板，显示错误 |
 | `permission.asked` | 记录待处理权限，状态栏提示 |
@@ -177,8 +204,19 @@ opencode --port 0
 - `--port 0` 时插件需要几秒发现端口
 
 **如何禁用面板？**
+在 `opencode-rmux.json` 中添加：
 ```json
 { "splits": false }
+```
+
+**如何更新到最新版？**
+Opencode 不会自动检查插件更新，且 `-f` 参数不会重新下载 npm 包。需手动删除缓存后重启：
+```bash
+# Linux / macOS
+rm -rf ~/.cache/opencode/packages/opencode-rmux
+
+# Windows PowerShell
+Remove-Item -Recurse -Force "$env:LOCALAPPDATA\opencode\cache\packages\opencode-rmux"
 ```
 
 ---

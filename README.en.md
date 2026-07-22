@@ -64,13 +64,24 @@ curl -fsSL https://rmux.io/install.sh | sh
 
 ### Plugin
 
-Add to your Opencode config `~/.config/opencode/opencode.jsonc`:
+Choose one of two methods:
 
+**CLI command (recommended)**
+```bash
+opencode plugin opencode-rmux -g
+```
+Downloads the npm package and updates global config automatically.
+
+**Manual config**
+Add to your `~/.config/opencode/opencode.jsonc`:
 ```jsonc
 { "plugin": ["opencode-rmux"] }
 ```
 
-Restart Opencode — it downloads automatically.
+Either way, restart Opencode — it downloads the plugin from npm automatically.
+
+> **Note: the plugin does NOT auto-update.** Opencode caches npm plugins permanently and never checks for newer versions on startup.
+> See "Updating" below for how to upgrade.
 
 ### Usage
 
@@ -79,6 +90,22 @@ opencode --port 0
 ```
 
 `--port 0` assigns a random port. The plugin discovers it automatically. Use `--port 14096` for a fixed port.
+
+### Updating
+
+Opencode does **not** auto-update npm plugins, and the `-f` flag on `opencode plugin <module> -f` only forces config entry replacement — it does **not** re-download the npm package. The only reliable way: clear cache, then restart.
+
+```bash
+# Linux / macOS
+rm -rf ~/.cache/opencode/packages/opencode-rmux
+
+# Windows PowerShell
+Remove-Item -Recurse -Force "$env:LOCALAPPDATA\opencode\cache\packages\opencode-rmux"
+```
+
+Restart Opencode — it re-downloads the latest version.
+
+> If you haven't added the plugin to `opencode.jsonc` yet, run `opencode plugin opencode-rmux -g` after clearing cache, then restart.
 
 ---
 
@@ -153,7 +180,7 @@ File: `~/.config/opencode/opencode-rmux.json`. If missing, all options use defau
 | Event | Action |
 |-------|--------|
 | `session.created` + parentID | Create right pane, run `opencode attach` to connect subagent session |
-| `session.status` busy | Status bar notification "working" |
+| `session.status` busy | Debug log "busy" |
 | `session.status` idle | Close pane, status bar notification "done" |
 | `session.error` | Close pane, show error |
 | `permission.asked` | Track pending permission, status bar notification |
@@ -177,8 +204,19 @@ File: `~/.config/opencode/opencode-rmux.json`. If missing, all options use defau
 - With `--port 0`, wait a moment for port discovery
 
 **Disable panels?**
+Add to your `opencode-rmux.json`:
 ```json
 { "splits": false }
+```
+
+**How to update to the latest version?**
+Opencode does not auto-update plugins, and `-f` does not re-download the npm package. Delete the cache directory and restart:
+```bash
+# Linux / macOS
+rm -rf ~/.cache/opencode/packages/opencode-rmux
+
+# Windows PowerShell
+Remove-Item -Recurse -Force "$env:LOCALAPPDATA\opencode\cache\packages\opencode-rmux"
 ```
 
 ---
