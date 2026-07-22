@@ -48,14 +48,18 @@ opencode --version
 
 Install RMUX:
 
+**Windows**
 ```bash
-# Windows
 winget install rmux
+```
 
-# macOS
+**macOS**
+```bash
 brew install rmux
+```
 
-# Linux
+**Linux**
+```bash
 curl -fsSL https://rmux.io/install.sh | sh
 ```
 
