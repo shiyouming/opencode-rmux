@@ -14,11 +14,25 @@
 </p>
 
 <table>
-<tr><td><b>子代理面板</b></td><td>自动创建 RMUX 右侧面板，实时显示子代理的工作内容。首个水平分屏，后续垂直堆叠，高度自动平衡</td></tr>
+<tr><td><b>子代理面板</b></td><td>Opencode 创建子代理时自动在 RMUX 右侧开面板，实时显示工作内容。首个水平分屏，后续垂直堆叠，高度自动平衡</td></tr>
 <tr><td><b>AI 控制工具</b></td><td>5 个工具让 AI 直接控制 RMUX：列出会话、创建会话、发送按键、捕获内容、等待文本</td></tr>
 <tr><td><b>跨平台</b></td><td>Windows / macOS / Linux 原生运行，无需 WSL</td></tr>
-<tr><td><b>TypeScript SDK</b></td><td>基于官方 <code>@rmux/sdk</code>，非命令行解析，类型安全</td></tr>
+<tr><td><b>TypeScript SDK</b></td><td>基于官方 <code>@rmux/sdk</code>，类型安全，非命令行解析</td></tr>
 </table>
+
+---
+
+## 为什么选择 opencode-rmux？
+
+|                | opencode-cmux | opencode-tmux | **opencode-rmux** |
+|----------------|:---:|:---:|:---:|
+| **Windows**    | ❌  | ⚠️ 需 WSL | ✅ 原生 |
+| **macOS**      | ✅  | ✅ | ✅ 原生 |
+| **Linux**      | ❌  | ✅ | ✅ 原生 |
+| **TypeScript SDK** | ❌ 命令行解析 | ❌ 命令行解析 | ✅ 官方 TypeScript SDK |
+| **子代理面板**  | ✅ 3 面板上限 | ✅ 无限制（取决于插件） | ✅ 可配置上限，自动回收 |
+| **AI 控制工具** | ❌  | ⚠️ 部分 | ✅ 5 个专有工具 |
+| **面板自动平衡** | ❌  | ❌ | ✅ 每次 split 后等高重排 |
 
 ---
 
@@ -26,32 +40,22 @@
 
 ### 环境要求
 
-- [Opencode](https://opencode.ai) ≥ 1.0：`npm install -g opencode-ai`
-- [RMUX](https://rmux.io)：见下方
-
-**Windows**
 ```bash
-winget install rmux
-```
+# Opencode
+npm install -g opencode-ai
 
-**macOS**
-```bash
-brew install rmux
-```
-
-**Linux**
-```bash
-curl -fsSL https://rmux.io/install.sh | sh
+# RMUX —— 按系统选择
+winget install rmux          # Windows
+brew install rmux            # macOS
+curl -fsSL https://rmux.io/install.sh | sh  # Linux
 ```
 
 ### 安装插件
 
-在 Opencode 配置文件（`~/.config/opencode/opencode.jsonc`）中添加：
+编辑 Opencode 配置文件 `~/.config/opencode/opencode.jsonc`：
 
 ```jsonc
-{
-  "plugin": ["opencode-rmux"]
-}
+{ "plugin": ["opencode-rmux"] }
 ```
 
 重启 Opencode，自动下载安装。
@@ -62,13 +66,13 @@ curl -fsSL https://rmux.io/install.sh | sh
 opencode --port 0
 ```
 
-`--port 0` 自动分配端口，插件自动发现。也可指定固定端口如 `--port 14096`。
+`--port 0` 自动分配端口。插件自动发现并连接。也可指定固定端口如 `--port 14096`。
 
 ---
 
 ## 配置
 
-文件：`~/.config/opencode/opencode-rmux.json`，不存在时全部使用默认值，零配置即可使用。
+文件：`~/.config/opencode/opencode-rmux.json`。文件不存在时全部使用默认值，**零配置即可使用**。
 
 ```json
 {
@@ -90,10 +94,10 @@ opencode --port 0
 |------|------|--------|------|
 | `splits` | boolean | `true` | 启用子代理面板 |
 | `splitSize` | string | `"30%"` | 右侧面板宽度，如 `"30%"` `"50%"` `"300px"` |
-| `keepPaneOnIdle` | boolean | `false` | 子代理完成后保留面板 |
-| `maxPanes` | number | `4` | 面板上限，超限回收最旧 |
-| `debug` | boolean | `false` | 调试日志到 stderr |
-| `notifications.done` | boolean | `true` | 完成通知 |
+| `keepPaneOnIdle` | boolean | `false` | 子代理完成后保留面板（不自动关闭） |
+| `maxPanes` | number | `4` | 面板上限，超限自动回收最旧的那个 |
+| `debug` | boolean | `false` | 调试日志输出到 stderr |
+| `notifications.done` | boolean | `true` | 子代理完成通知 |
 | `notifications.permission` | boolean | `true` | 权限请求通知 |
 | `notifications.question` | boolean | `true` | AI 提问通知 |
 | `notifications.error` | boolean | `true` | 错误通知 |
@@ -104,27 +108,19 @@ opencode --port 0
 
 ```
 +----------+------+
-|          | ag1  |
-|  Main    |------|
-|  Area    | ag2  |
-|  70%     |------|
-|          | ag3  |
+|          | 代理A |
+|  主区域   |------|
+|  70%     | 代理B |
+|          |------|
+|          | 代理C |
 +----------+------+
 ```
 
-首个代理水平分屏，后续垂直堆叠，高度自动平衡。达到 `maxPanes` 上限时回收最旧面板。
-
----
-
-## vs 同类插件
-
-|                | opencode-cmux | opencode-tmux | **opencode-rmux** |
-|----------------|:---:|:---:|:---:|
-| **Windows**    | ❌  | ⚠️ WSL | ✅ 原生 |
-| **macOS**      | ✅  | ✅ | ✅ 原生 |
-| **Linux**      | ❌  | ✅ | ✅ 原生 |
-| **TypeScript SDK** | ❌ CLI | ❌ CLI | ✅ @rmux/sdk |
-| **AI 控制工具** | ❌  | ⚠️ 有限 | ✅ 5 个 |
+- **首个子代理**：水平分屏，右侧面板（默认 30% 宽度，可通过 `splitSize` 调整）
+- **后续子代理**：从最后一个面板垂直分割，向下堆叠
+- **高度平衡**：每次新分裂后自动用 `resize-pane` 将所有右侧面板设为等高
+- **自动回收**：达到 `maxPanes` 上限时，强制关闭最旧的面板，新面板替代其位置
+- **完成清理**：`keepPaneOnIdle: false` 时，子代理完成立即关闭面板
 
 ---
 
@@ -132,11 +128,11 @@ opencode --port 0
 
 | 工具 | 说明 |
 |------|------|
-| `rmux_list_sessions` | 列出所有会话 |
-| `rmux_create_session` | 创建新会话（可选启动命令） |
-| `rmux_send_keys` | 向面板发送按键 |
-| `rmux_capture` | 捕获面板文字 |
-| `rmux_wait_for_text` | 等待文本出现 |
+| `rmux_list_sessions` | 列出所有 RMUX 会话及其窗口/面板信息 |
+| `rmux_create_session` | 创建新 RMUX 会话，可选附带启动命令 |
+| `rmux_send_keys` | 向指定面板发送按键（连 AI 也能控制终端） |
+| `rmux_capture` | 捕获面板当前屏幕文字内容 |
+| `rmux_wait_for_text` | 等待面板中出现指定文本（支持超时） |
 
 ---
 
@@ -144,22 +140,34 @@ opencode --port 0
 
 | 事件 | 行为 |
 |------|------|
-| `session.created` + parentID | 创建右侧面板，运行 `opencode attach` |
-| `session.status` busy | 状态栏通知 |
-| `session.status` idle | 关闭面板 |
-| `session.error` | 关闭面板，提示错误 |
-| `permission.asked` / `replied` | 权限追踪 |
-| `question.asked` / `replied` / `rejected` | 提问追踪 |
+| `session.created` + parentID | 创建右侧面板，执行 `opencode attach` 连接子代理会话 |
+| `session.status` busy | 状态栏显示 "working" |
+| `session.status` idle | 关闭面板，状态栏显示 "done" |
+| `session.error` | 关闭面板，显示错误 |
+| `permission.asked` | 记录待处理权限，状态栏提示 |
+| `permission.replied` | 清除权限待处理状态 |
+| `question.asked` | 记录待处理提问，状态栏提示 |
+| `question.replied` / `question.rejected` | 清除提问待处理状态 |
+
+> 子代理不会触发 `session.deleted` 事件，因此清理依赖 `session.status` idle。
 
 ---
 
 ## 常见问题
 
-**右侧面板没出现？** 确认 `opencode --port 0` 启动，`"splits": true`，RMUX 在运行。
+**右侧面板没有出现？**
+- 确认 `opencode --port 0` 启动
+- 确认 `"splits": true`
+- 确认 RMUX 在运行（`rmux list-sessions` 有输出）
 
-**显示 Unable to connect？** 确认用了 `--port` 参数，`--port 0` 时等几秒让插件发现端口。
+**面板显示 Unable to connect？**
+- 确认用了 `--port` 参数
+- `--port 0` 时插件需要几秒发现端口
 
-**禁用面板？** `{ "splits": false }`
+**如何禁用面板？**
+```json
+{ "splits": false }
+```
 
 ---
 
@@ -167,9 +175,9 @@ opencode --port 0
 
 ```bash
 npm install       # 安装依赖
-npm run typecheck # 类型检查
-npm run build     # 构建
-npm test          # 运行测试
+npm run typecheck # tsc --noEmit
+npm test          # 运行测试（62 个用例）
+npm run build     # 构建 dist/
 ```
 
 ## 协议
@@ -180,5 +188,5 @@ MIT
 
 <p align="center">
   本项目由 Opencode + DeepSeek V4 Flash 辅助编写<br>
-  <a href="https://github.com/shiyouming/opencode-rmux">GitHub</a> · <a href="https://www.npmjs.com/package/opencode-rmux">npm</a> · <a href="https://github.com/anomalyco/opencode/pull/38052">opencode 生态</a>
+  <a href="https://github.com/shiyouming/opencode-rmux">GitHub</a> · <a href="https://www.npmjs.com/package/opencode-rmux">npm</a> · <a href="https://github.com/anomalyco/opencode/pull/38052">Opencode 生态</a>
 </p>
