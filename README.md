@@ -1,6 +1,9 @@
 # opencode-rmux
 
 [![Built on RMUX](https://img.shields.io/badge/built%20on-RMUX-000000?style=flat-square)](https://rmux.io)
+[English](README.en.md)
+
+---
 
 **唯一一个跨平台支持 Windows 原生运行的 Opencode 终端复用器插件。** 不需要 WSL，Windows / macOS / Linux 原生运行。
 
