@@ -41,11 +41,16 @@ opencode --version
 
 安装 RMUX：
 
-| 系统 | 命令 |
-|------|------|
-| Windows | `winget install rmux` |
-| macOS | `brew install rmux` |
-| Linux | `curl -fsSL https://rmux.io/install.sh \| sh` |
+```bash
+# Windows
+winget install rmux
+
+# macOS
+brew install rmux
+
+# Linux
+curl -fsSL https://rmux.io/install.sh | sh
+```
 
 验证：`rmux --version`
 

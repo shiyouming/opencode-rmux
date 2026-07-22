@@ -48,11 +48,16 @@ opencode --version
 
 Install RMUX:
 
-| Platform | Command |
-|----------|---------|
-| Windows | `winget install rmux` |
-| macOS | `brew install rmux` |
-| Linux | `curl -fsSL https://rmux.io/install.sh \| sh` |
+```bash
+# Windows
+winget install rmux
+
+# macOS
+brew install rmux
+
+# Linux
+curl -fsSL https://rmux.io/install.sh | sh
+```
 
 Verify:
 
