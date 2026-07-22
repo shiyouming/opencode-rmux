@@ -1,52 +1,33 @@
+<p align="center">
+  <a href="README.md"><img src="https://img.shields.io/badge/Lang-中文-red?style=for-the-badge" alt="中文"></a>
+  <a href="https://rmux.io"><img src="https://img.shields.io/badge/built%20on-RMUX-000000?style=for-the-badge" alt="Built on RMUX"></a>
+  <a href="https://www.npmjs.com/package/opencode-rmux"><img src="https://img.shields.io/npm/v/opencode-rmux?style=for-the-badge" alt="npm"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge" alt="MIT"></a>
+  <a href="https://github.com/shiyouming/opencode-rmux"><img src="https://img.shields.io/github/stars/shiyouming/opencode-rmux?style=for-the-badge" alt="Stars"></a>
+</p>
+
 # opencode-rmux
 
-[![Built on RMUX](https://img.shields.io/badge/built%20on-RMUX-000000?style=flat-square)](https://rmux.io)
+<p align="center">
+  Opencode plugin for RMUX terminal multiplexer · Real-time subagent pane management · AI-driven RMUX control tools<br>
+  <b>The only cross-platform plugin that runs natively on Windows, macOS, and Linux</b>
+</p>
 
-**The only cross-platform opencode plugin for terminal multiplexer subagent pane management.** Works on **Windows**, **macOS**, and **Linux** — natively, no WSL required.
-
-Bridges AI coding agent sessions with [RMUX](https://rmux.io) terminal multiplexer — real-time subagent pane management and AI-driven RMUX control tools.
-
----
-
-## Why opencode-rmux?
-
-|                          | opencode-cmux | opencode-tmux plugins | **opencode-rmux** |
-|--------------------------|:---:|:---:|:---:|
-| **Windows**              | ❌  | ⚠️ WSL | ✅ Native |
-| **macOS**                | ✅  | ✅ | ✅ Native |
-| **Linux**                | ❌  | ✅ | ✅ Native |
-| **TypeScript SDK**       | ❌ CLI | ❌ CLI | ✅ @rmux/sdk |
-| **Subagent Pane Mgmt**   | ✅  | ✅ | ✅ |
-| **AI Control Tools**     | ❌  | ⚠️ Limited | ✅ 5 tools |
+<table>
+<tr><td><b>Subagent Panes</b></td><td>Auto-creates RMUX panes to display subagent work in real-time. First agent splits right, subsequent stack vertically with auto-balanced heights</td></tr>
+<tr><td><b>AI RMUX Tools</b></td><td>5 tools for AI to control RMUX directly: list sessions, create session, send keys, capture pane, wait for text</td></tr>
+<tr><td><b>Cross-Platform</b></td><td>Native Windows, macOS, Linux — no WSL required</td></tr>
+<tr><td><b>TypeScript SDK</b></td><td>Built on official <code>@rmux/sdk</code> — type-safe, no CLI parsing</td></tr>
+</table>
 
 ---
 
-## Features
+## Installation
 
-- **Subagent Pane Management** — When Opencode spawns subagents, automatically creates RMUX panes on the right side showing real-time subagent work
-- **AI Custom Tools** — 5 tools that let the AI control RMUX directly
-- **Cross-Platform** — Native support for **Windows**, **macOS**, and **Linux**
+### Prerequisites
 
----
-
-## Requirements
-
-- [Opencode](https://opencode.ai) ≥ 1.0
-- [RMUX](https://rmux.io) binary installed and on `$PATH`
-
-Install Opencode:
-
-```bash
-npm install -g opencode-ai
-```
-
-Verify:
-
-```bash
-opencode --version
-```
-
-Install RMUX:
+- [Opencode](https://opencode.ai) ≥ 1.0: `npm install -g opencode-ai`
+- [RMUX](https://rmux.io): see below
 
 **Windows**
 ```bash
@@ -63,69 +44,31 @@ brew install rmux
 curl -fsSL https://rmux.io/install.sh | sh
 ```
 
-Verify:
+### Plugin
 
-```bash
-rmux --version
-```
-
----
-
-## Installation
-
-### Automatic (recommended)
-
-Add to your Opencode config file (`~/.config/opencode/opencode.jsonc`):
+Add to your Opencode config (`~/.config/opencode/opencode.jsonc`):
 
 ```jsonc
 {
-  "plugin": ["opencode-rmux"],
-  // ... other config
+  "plugin": ["opencode-rmux"]
 }
 ```
 
-Restart Opencode — it will download the package automatically.
+Restart Opencode — it downloads automatically.
 
-### Manual (development)
-
-```bash
-git clone https://github.com/ShiYouming/opencode-rmux.git
-cd opencode-rmux
-npm install
-npm run build
-
-# Windows
-copy dist\index.js "%USERPROFILE%\.config\opencode\plugins\rmux.js"
-
-# macOS/Linux
-ln -sf "$PWD/dist/index.js" ~/.config/opencode/plugins/rmux.js
-```
-
----
-
-## Usage
-
-Start Opencode **with `--port`** flag — required for subagent pane management:
+### Usage
 
 ```bash
 opencode --port 0
 ```
 
-`--port 0` assigns a random available port. The plugin discovers it automatically.
-
-To use a fixed port:
-
-```bash
-opencode --port 14096
-```
+`--port 0` assigns a random port. The plugin discovers it automatically. Use `--port 14096` for a fixed port.
 
 ---
 
 ## Configuration
 
-Config file: `~/.config/opencode/opencode-rmux.json`
-
-If the file is missing or invalid, all options use defaults — **zero configuration required**.
+File: `~/.config/opencode/opencode-rmux.json`. If missing, all options use defaults — zero config required.
 
 ```json
 {
@@ -146,35 +89,11 @@ If the file is missing or invalid, all options use defaults — **zero configura
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `splits` | boolean | `true` | Enable subagent pane creation |
-| `splitSize` | string | `"30%"` | Right panel width (e.g. `"30%"`, `"50%"`, `"300px"`) |
-| `keepPaneOnIdle` | boolean | `false` | Keep pane open after subagent completes |
-| `maxPanes` | number | `4` | Max subagent panes; oldest recycled when full |
+| `splitSize` | string | `"30%"` | Right panel width (e.g. `"30%"`, `"50%"` |
+| `keepPaneOnIdle` | boolean | `false` | Keep pane after subagent completes |
+| `maxPanes` | number | `4` | Max panes; oldest recycled when full |
 | `debug` | boolean | `false` | Debug logging to stderr |
-| `notifications.done` | boolean | `true` | Notify on subagent completion |
-| `notifications.permission` | boolean | `true` | Notify on permission request |
-| `notifications.question` | boolean | `true` | Notify on AI question |
-| `notifications.error` | boolean | `true` | Notify on error |
-
-### Example configs
-
-**Disable notifications, keep panes**:
-
-```json
-{
-  "splits": true,
-  "keepPaneOnIdle": true,
-  "notifications": { "done": false }
-}
-```
-
-**Wider panel**:
-
-```json
-{
-  "splits": true,
-  "splitSize": "50%"
-}
-```
+| `notifications.*` | boolean | `true` | Per-type notification toggles |
 
 ---
 
@@ -190,23 +109,30 @@ If the file is missing or invalid, all options use defaults — **zero configura
 +----------+------+
 ```
 
-- First subagent: horizontal split (right panel, default 30%)
-- Subsequent subagents: stack vertically on the right
-- Heights are automatically balanced
-- At `maxPanes` limit: oldest pane is recycled
-- With `keepPaneOnIdle: false` panes close automatically on completion
+---
+
+## Why opencode-rmux?
+
+|                          | opencode-cmux | opencode-tmux | **opencode-rmux** |
+|--------------------------|:---:|:---:|:---:|
+| **Windows**              | ❌  | ⚠️ WSL | ✅ Native |
+| **macOS**                | ✅  | ✅ | ✅ Native |
+| **Linux**                | ❌  | ✅ | ✅ Native |
+| **TypeScript SDK**       | ❌ CLI | ❌ CLI | ✅ @rmux/sdk |
+| **Subagent Panes**       | ✅  | ✅ | ✅ |
+| **AI RMUX Tools**        | ❌  | ⚠️ Limited | ✅ 5 tools |
 
 ---
 
-## Custom Tools
+## Tools
 
 | Tool | Description |
 |------|-------------|
-| `rmux_list_sessions` | List all running RMUX sessions |
-| `rmux_create_session` | Create a new RMUX session (optionally with startup command) |
-| `rmux_send_keys` | Send keystrokes to an RMUX pane |
-| `rmux_capture` | Capture pane screen content as text |
-| `rmux_wait_for_text` | Wait for text pattern to appear in a pane |
+| `rmux_list_sessions` | List all RMUX sessions |
+| `rmux_create_session` | Create a new session |
+| `rmux_send_keys` | Send keystrokes to a pane |
+| `rmux_capture` | Capture pane screen content |
+| `rmux_wait_for_text` | Wait for text pattern in pane |
 
 ---
 
@@ -215,43 +141,31 @@ If the file is missing or invalid, all options use defaults — **zero configura
 | Event | Action |
 |-------|--------|
 | `session.created` + parentID | Create right pane, run `opencode attach` |
-| `session.status` busy | Status bar notification "working" |
-| `session.status` idle | Close pane, status bar notification "done" |
-| `session.error` | Close pane, show error |
-| `permission.asked` | Status bar notification |
-| `permission.replied` | Clear pending state |
+| `session.status` busy | Status bar notification |
+| `session.status` idle | Close pane |
+| `session.error` | Close pane, notify error |
+| `permission.asked` / `replied` | Track pending state |
+| `question.asked` / `replied` / `rejected` | Track pending state |
 
 ---
 
 ## Troubleshooting
 
-### Right panel doesn't appear?
+**Right panel missing?** Make sure you run `opencode --port 0`, `"splits": true`, and RMUX is running.
 
-1. Make sure you started Opencode with `--port 0` (or a fixed port)
-2. Check `"splits": true` in config
-3. Verify RMUX is running (`rmux list-sessions`)
+**Unable to connect?** Ensure `--port` flag is used. With `--port 0`, wait a moment for port discovery.
 
-### Panel shows `Unable to connect`?
-
-- Make sure Opencode was started with `--port`
-- With `--port 0`, the plugin needs a moment to discover the port
-
-### Disable panels?
-
-```json
-{ "splits": false }
-```
+**Disable panels?** `{ "splits": false }`
 
 ---
 
 ## Development
 
 ```bash
-npm install            # install dependencies
-npm run typecheck      # tsc --noEmit
-npm run build          # build dist/
-npm test               # run tests
-npm run prepublishOnly # typecheck + test + build
+npm install       # install dependencies
+npm run typecheck # tsc --noEmit
+npm run build     # build dist/
+npm test          # run tests
 ```
 
 ## License
@@ -260,8 +174,7 @@ MIT
 
 ---
 
-## About This Project
-
-This plugin was built entirely through AI pair programming — [Opencode](https://opencode.ai) + **DeepSeek V4 Flash**. Every line of code was written by AI agents, and their work was managed in real-time by the plugin itself. It's a meta showcase of the tool it provides.
-
-**Why `opencode-rmux`?** The terminal multiplexer plugin ecosystem for Opencode has been fragmented by platform — `opencode-cmux` is macOS-only, tmux plugins exclude Windows users without WSL. `opencode-rmux` unifies the experience across Windows, macOS, and Linux with a modern TypeScript SDK, giving every Opencode user the same subagent pane management regardless of their operating system.
+<p align="center">
+  Built with Opencode + DeepSeek V4 Flash<br>
+  <a href="https://github.com/shiyouming/opencode-rmux">GitHub</a> · <a href="https://www.npmjs.com/package/opencode-rmux">npm</a> · <a href="https://github.com/anomalyco/opencode/pull/38052">opencode Ecosystem</a>
+</p>
