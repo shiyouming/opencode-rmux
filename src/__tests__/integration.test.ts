@@ -143,7 +143,7 @@ describe("Integration: SessionManager + real RMUXManager", () => {
       properties: { info: { id: "sub-002", parentID: "parent-001" } },
     })
 
-    expect(mocks.mockClient.listSessions).toHaveBeenCalledTimes(1)
+    expect(mocks.mockClient.listSessions).not.toHaveBeenCalled()
   })
 
   it("tracks permissions across multiple events", async () => {
