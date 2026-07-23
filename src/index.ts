@@ -6,6 +6,7 @@ import { createTools } from "./tools.js"
 import { PermissionState, QuestionState } from "./state.js"
 
 const plugin: Plugin = async () => {
+  process.setMaxListeners(0)
   const config: RMUXPluginConfig = loadConfig()
   const rmux = new RMUXManager()
   const permission = new PermissionState()
