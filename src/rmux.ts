@@ -6,14 +6,27 @@ export type { SessionInfo }
 
 export class RMUXManager {
   private client: RMUX | null = null
+  private mainSessionName: string | null = null
 
   async connect(): Promise<boolean> {
     try {
       this.client = await RMUX.builder().connectOrStart()
+      await this.refreshMainSession()
       return true
     } catch {
       this.client = null
       return false
+    }
+  }
+
+  private async refreshMainSession(): Promise<void> {
+    try {
+      const sessions = await this.listSessions()
+      if (sessions.length > 0) {
+        this.mainSessionName = sessions[0].name
+      }
+    } catch {
+      this.mainSessionName = null
     }
   }
 
@@ -79,7 +92,19 @@ export class RMUXManager {
   async sendKeys(target: string, keys: string): Promise<void> {
     if (!this.client) throw new Error("RMUX not connected")
     try {
-      await this.client.sendKeys(target, keys)
+      if (keys.endsWith(" Enter")) {
+        const text = keys.slice(0, -6)
+        await this.client.sendText(target, text)
+        await this.client.sendKeys(target, "Enter")
+      } else {
+        await this.client.sendText(target, keys)
+      }
+      if (this.mainSessionName) {
+        const mainTarget = `${this.mainSessionName}:0.0`
+        if (mainTarget !== target) {
+          await this.client.cmd("select-pane", "-t", mainTarget).catch(() => {})
+        }
+      }
     } catch {
       throw new Error(`Failed to send keys to: ${target}`)
     }

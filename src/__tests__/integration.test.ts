@@ -43,6 +43,7 @@ const mocks = vi.hoisted(() => {
     session: vi.fn().mockReturnValue(mockSession),
     ensureSession: vi.fn().mockResolvedValue(mockSession),
     sendKeys: vi.fn().mockResolvedValue({ returnCode: 0, stdout: "", stderr: "" }),
+    sendText: vi.fn().mockResolvedValue({ returnCode: 0, stdout: "", stderr: "" }),
     capturePane: vi.fn().mockResolvedValue("captured output text"),
     cmd: vi.fn().mockResolvedValue({ returnCode: 0, stdout: "ok", stderr: "" }),
   }
@@ -142,7 +143,7 @@ describe("Integration: SessionManager + real RMUXManager", () => {
       properties: { info: { id: "sub-002", parentID: "parent-001" } },
     })
 
-    expect(mocks.mockClient.listSessions).not.toHaveBeenCalled()
+    expect(mocks.mockClient.listSessions).toHaveBeenCalledTimes(1)
   })
 
   it("tracks permissions across multiple events", async () => {
@@ -256,7 +257,7 @@ describe("Integration: Tools + real RMUXManager", () => {
     }, {})
 
     expect(result).toContain("echo hello")
-    expect(mocks.mockClient.sendKeys).toHaveBeenCalledWith("s1:0.0", "echo hello")
+    expect(mocks.mockClient.sendText).toHaveBeenCalledWith("s1:0.0", "echo hello")
   })
 
   it("rmux_capture returns pane content", async () => {

@@ -64,10 +64,10 @@ function formatCreateSession(rmux: RMUXManager) {
 
 function formatSendKeys(rmux: RMUXManager) {
   return tool({
-    description: "Send keystrokes to an RMUX pane (target as single string, e.g. 'demo:0.0' or '%1')",
+    description: "Type a command into a pane as if typing at a keyboard. Use 'Enter' at the end to run it.",
     args: {
       target: tool.schema.string(),
-      keys: tool.schema.string(),
+      keys: tool.schema.string().describe("The exact text to type. Append 'Enter' to execute (e.g. 'npm install Enter'). Do NOT cd into a directory first — the pane has its own working directory. Do NOT add 'pause', '&&', or any extra wrapping. Type ONLY what the user asked to run."),
     },
     async execute(args: ToolArgs, _context: ToolContext) {
       try {
@@ -247,7 +247,8 @@ function formatObserveMulti(rmux: RMUXManager) {
         }
         const monitor = new MonitorManager()
         const tasks = paneList.map(async p => {
-          const pane = rmux.paneFromTarget(p.target)
+          const fullTarget = p.target.includes(":") ? p.target : `${p.sessionName}:${p.target}`
+          const pane = rmux.paneFromTarget(fullTarget)
           if (!pane) return { target: p.target, error: "Cannot resolve pane" }
           const result = await monitor.collectLines(pane, {
             timeout: args.timeout,

@@ -4,3 +4,5 @@ dist/
 *.tsbuildinfo
 AGENTS.md
 PLAN.md
+docs/PLAN.md
+docs/V2-DESIGN.md

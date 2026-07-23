@@ -15,10 +15,23 @@
 
 <table>
 <tr><td><b>子代理面板</b></td><td>Opencode 创建子代理时自动在 RMUX 右侧开面板，实时显示工作内容。首个水平分屏，后续垂直堆叠，高度自动平衡</td></tr>
-<tr><td><b>AI 控制工具</b></td><td>5 个工具让 AI 直接控制 RMUX：列出会话、创建会话、发送按键、捕获内容、等待文本</td></tr>
+<tr><td><b>AI 控制工具</b></td><td>9 个工具让 AI 直接控制 RMUX：查面板、看详情、发按键、捕获内容、等文本、流式监听等</td></tr>
 <tr><td><b>跨平台</b></td><td>Windows / macOS / Linux 原生运行，无需 WSL</td></tr>
 <tr><td><b>TypeScript SDK</b></td><td>基于官方 <code>@rmux/sdk</code>，类型安全，非命令行解析</td></tr>
 </table>
+
+---
+
+- [为什么选择 opencode-rmux](#为什么选择-opencode-rmux)
+- [安装](#安装)
+- [快速上手](#快速上手)
+- [配置](#配置)
+- [布局](#布局)
+- [工具](#工具)
+- [事件与响应](#事件与响应)
+- [常见问题](#常见问题)
+- [开发](#开发)
+- [协议](#协议)
 
 ---
 
@@ -30,8 +43,11 @@
 | **macOS**      | ✅  | ✅ | ✅ 原生 |
 | **Linux**      | ❌  | ✅ | ✅ 原生 |
 | **TypeScript SDK** | ❌ 命令行解析 | ❌ 命令行解析 | ✅ 官方 TypeScript SDK |
-| **子代理面板**  | ✅ 3 面板上限 | ✅ 无限制（取决于插件） | ✅ 可配置上限，自动回收 |
-| **AI 控制工具** | ❌  | ⚠️ 部分 | ✅ 5 个专有工具 |
+| **子代理面板**  | ✅ 3 面板上限 | ✅ 无限制 | ✅ 可配置上限，自动回收 |
+| **AI 控制工具** | ❌  | ⚠️ 部分 | ✅ **9 个专有工具** |
+| **面板元数据**  | ❌  | ❌ | ✅ PID/命令/尺寸等详情 |
+| **面板搜索**    | ❌  | ❌ | ✅ 按会话/命令/状态筛选 |
+| **流式监听**    | ❌  | ❌ | ✅ 单面板/多面板实时输出流 |
 | **面板自动平衡** | ❌  | ❌ | ✅ 每次 split 后等高重排 |
 
 ---
@@ -109,6 +125,18 @@ Remove-Item -Recurse -Force "$env:LOCALAPPDATA\opencode\cache\packages\opencode-
 
 ---
 
+## 快速上手
+
+装好了？对 opencode 里的 AI 说一句话试试：
+
+```
+帮我看看现在终端里有哪些窗口在跑
+```
+
+如果 AI 回答了你，说明插件已生效。详细玩法看 [入门指南](TUTORIAL.md)。
+
+---
+
 ## 配置
 
 文件：`~/.config/opencode/opencode-rmux.json`。文件不存在时全部使用默认值，**零配置即可使用**。
@@ -169,26 +197,28 @@ Remove-Item -Recurse -Force "$env:LOCALAPPDATA\opencode\cache\packages\opencode-
 |------|------|
 | `rmux_list_sessions` | 列出所有 RMUX 会话及其窗口/面板信息 |
 | `rmux_create_session` | 创建新 RMUX 会话，可选附带启动命令 |
+| `rmux_find_panes` | 按会话名、命令、标题或状态搜索面板 |
+| `rmux_pane_info` | 查看面板详细信息（PID、命令、尺寸等） |
 | `rmux_send_keys` | 向指定面板发送按键（连 AI 也能控制终端） |
 | `rmux_capture` | 捕获面板当前屏幕文字内容 |
 | `rmux_wait_for_text` | 等待面板中出现指定文本（支持超时） |
+| `rmux_observe` | 流式收集面板输出，返回收集到的行 |
+| `rmux_observe_multi` | 同时流式监听多个面板的输出 |
 
 ---
 
-## 工作原理
+## 事件与响应
 
-| 事件 | 行为 |
-|------|------|
-| `session.created` + parentID | 创建右侧面板，执行 `opencode attach` 连接子代理会话 |
-| `session.status` busy | 调试日志记录 busy |
-| `session.status` idle | 关闭面板，状态栏显示 "done" |
-| `session.error` | 关闭面板，显示错误 |
-| `permission.asked` | 记录待处理权限，状态栏提示 |
-| `permission.replied` | 清除权限待处理状态 |
-| `question.asked` | 记录待处理提问，状态栏提示 |
-| `question.replied` / `question.rejected` | 清除提问待处理状态 |
+插件自动响应以下事件，无需人工干预：
 
-> 子代理不会触发 `session.deleted` 事件，因此清理依赖 `session.status` idle。
+| 发生了什么 | 插件会怎么做 |
+|-----------|------------|
+| 子代理被创建 | 右侧自动开面板，显示子代理工作 |
+| 子代理在工作 | 调试日志记录 |
+| 子代理完成了 | 自动关闭面板，通知 "done" |
+| 子代理出错 | 关闭面板，显示错误 |
+| AI 请求权限 | 通知你，等待处理 |
+| AI 提问 | 通知你，等待回复 |
 
 ---
 
@@ -196,12 +226,20 @@ Remove-Item -Recurse -Force "$env:LOCALAPPDATA\opencode\cache\packages\opencode-
 
 **右侧面板没有出现？**
 - 确认 `opencode --port 0` 启动
-- 确认 `"splits": true`
+- 确认配置文件里 `"splits": true`
 - 确认 RMUX 在运行（`rmux list-sessions` 有输出）
 
 **面板显示 Unable to connect？**
-- 确认用了 `--port` 参数
-- `--port 0` 时插件需要几秒发现端口
+- 确认用了 `--port` 参数启动 opencode
+- `--port 0` 时插件需要几秒自动发现端口
+
+**发命令后没有执行（"Enter" 被当成文字打了）？**
+- 如果你是 v1 升级上来的，确认用的是最新版
+- 命令格式应该像 `npm install Enter`，其中 `Enter` 会被识别为回车键
+
+**AI 说找不到面板？**
+- 确保你用的面板地址格式正确，如 `opencode:0.1`
+- 可以先让 AI 用 `rmux_find_panes` 搜一下有哪些面板
 
 **如何禁用面板？**
 在 `opencode-rmux.json` 中添加：
@@ -210,7 +248,7 @@ Remove-Item -Recurse -Force "$env:LOCALAPPDATA\opencode\cache\packages\opencode-
 ```
 
 **如何更新到最新版？**
-Opencode 不会自动检查插件更新，且 `-f` 参数不会重新下载 npm 包。需手动删除缓存后重启：
+Opencode 不会自动检查插件更新。需手动删除缓存后重启：
 ```bash
 # Linux / macOS
 rm -rf ~/.cache/opencode/packages/opencode-rmux
@@ -226,7 +264,7 @@ Remove-Item -Recurse -Force "$env:LOCALAPPDATA\opencode\cache\packages\opencode-
 ```bash
 npm install       # 安装依赖
 npm run typecheck # tsc --noEmit
-npm test          # 运行测试（62 个用例）
+npm test          # 运行测试（97 个用例）
 npm run build     # 构建 dist/
 ```
 

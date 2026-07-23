@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/package.json",
   "name": "opencode-rmux",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "Opencode plugin that bridges AI coding agent sessions with RMUX terminal multiplexer — cross-platform subagent pane management and AI-driven RMUX control tools",
   "type": "module",
   "main": "dist/index.js",
@@ -21,7 +21,8 @@
   },
   "files": [
     "dist",
-    "README.en.md"
+    "README.en.md",
+    "TUTORIAL.en.md"
   ],
   "scripts": {
     "build": "tsc",
@@ -34,7 +35,15 @@
     "opencode-plugin",
     "rmux",
     "multiplexer",
-    "terminal"
+    "terminal",
+    "tmux",
+    "cmux",
+    "subagent",
+    "pane",
+    "windows",
+    "cross-platform",
+    "terminal-manager",
+    "ai-coding"
   ],
   "author": "ShiYouming",
   "license": "MIT",
