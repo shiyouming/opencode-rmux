@@ -80,10 +80,11 @@ export class RMUXManager {
   async sendKeys(target: string, keys: string): Promise<void> {
     if (!this.client) throw new Error("RMUX not connected")
     try {
-      if (keys === "Enter" || keys.endsWith(" Enter")) {
-        const text = keys === "Enter" ? "" : keys.slice(0, -6)
-        if (text) await this.client.sendText(target, text)
+      if (keys === "Enter") {
         await this.client.sendKeys(target, "Enter")
+      } else if (keys.endsWith(" Enter")) {
+        const text = keys.slice(0, -6)
+        await this.client.sendText(target, text + "\n")
       } else {
         await this.client.sendText(target, keys)
       }
