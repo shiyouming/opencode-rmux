@@ -64,7 +64,7 @@ function formatCreateSession(rmux: RMUXManager) {
 
 function formatSendKeys(rmux: RMUXManager) {
   return tool({
-    description: "Send keystrokes to an RMUX pane (target as single string, e.g. 'demo:%1' or '%1')",
+    description: "Send keystrokes to an RMUX pane (target as single string, e.g. 'demo:0.0' or '%1')",
     args: {
       target: tool.schema.string(),
       keys: tool.schema.string(),
@@ -85,7 +85,7 @@ function formatSendKeys(rmux: RMUXManager) {
 
 function formatCapture(rmux: RMUXManager) {
   return tool({
-    description: "Capture pane screen content as text (target as single string, e.g. 'demo:%1' or '%1')",
+    description: "Capture pane screen content as text (target as single string, e.g. 'demo:0.0' or '%1')",
     args: {
       target: tool.schema.string(),
     },
@@ -153,7 +153,7 @@ function formatFindPanes(rmux: RMUXManager) {
         const panes = await rmux.findPanes(query)
         if (panes.length === 0) return "No panes found matching the query."
         const lines = panes.map(p =>
-          `${p.sessionName}:${p.paneId} (idx:${p.paneIndex}, cmd:${p.currentCommand}, pid:${p.pid})`
+          `${p.sessionName}:${p.windowIndex}.${p.paneIndex} (id:${p.paneId}, cmd:${p.currentCommand}, pid:${p.pid})`
         )
         return `Found ${panes.length} pane(s):\n${lines.join("\n")}`
       } catch (error) {
@@ -175,10 +175,10 @@ function formatPaneInfo(rmux: RMUXManager) {
           return "RMUX daemon is not connected. Ensure the rmux binary is installed and running."
         }
         const meta = await rmux.getPaneMeta(args.target)
+        const usableTarget = `${meta.sessionName}:${meta.windowIndex}.${meta.paneIndex}`
         const lines = [
           `Session: ${meta.sessionName}`,
-          `Pane ID: ${meta.paneId}`,
-          `Window: ${meta.windowIndex}  Pane Index: ${meta.paneIndex}`,
+          `Pane: ${usableTarget}  (pane ID: ${meta.paneId})`,
           `Active: ${meta.active}  Dead: ${meta.dead}${meta.deadStatus !== null ? ` (status ${meta.deadStatus})` : ""}`,
           `Size: ${meta.width}x${meta.height}`,
           `PID: ${meta.pid ?? "N/A"}`,

@@ -289,7 +289,7 @@ describe("Integration: Tools + real RMUXManager", () => {
     const tools = createTools(rmux)
     const result = await tools.rmux_find_panes.execute({ sessionName: "s1" }, {})
 
-    expect(result).toContain("s1:%0")
+    expect(result).toContain("id:%0")
     expect(result).toContain("Found 1 pane(s)")
   })
 
@@ -327,7 +327,8 @@ describe("Integration: Tools + real RMUXManager", () => {
     const result = await tools.rmux_pane_info.execute({ target: "demo:%2" }, {})
 
     expect(result).toContain("Session: demo")
-    expect(result).toContain("Pane ID: %2")
+    expect(result).toContain("demo:0.1")
+    expect(result).toContain("pane ID: %2")
     expect(result).toContain("PID: 9999")
     expect(result).toContain("Command: node")
   })

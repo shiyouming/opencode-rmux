@@ -247,7 +247,7 @@ describe("tools", () => {
     rmuxMocks.mockPaneFromTarget.mockReturnValue(null)
     const mgr = new rmuxMocks.MockRMUXManager()
     mgr.findPanes = vi.fn().mockResolvedValue([
-      { sessionName: "s1", paneId: "%0", paneIndex: 0, currentCommand: "bash", pid: 100 },
+      { sessionName: "s1", paneId: "%0", windowIndex: 0, paneIndex: 0, currentCommand: "bash", pid: 100 },
     ])
 
     const { createTools } = await import("../tools.js")
@@ -258,7 +258,7 @@ describe("tools", () => {
     )
 
     expect(result).toContain("Found 1 pane(s)")
-    expect(result).toContain("s1:%0")
+    expect(result).toContain("id:%0")
   })
 
   it("rmux_find_panes returns no panes when none match", async () => {
@@ -291,7 +291,8 @@ describe("tools", () => {
     )
 
     expect(result).toContain("Session: demo")
-    expect(result).toContain("Pane ID: %2")
+    expect(result).toContain("demo:0.1")
+    expect(result).toContain("pane ID: %2")
     expect(result).toContain("PID: 9999")
     expect(result).toContain("Command: node")
   })
