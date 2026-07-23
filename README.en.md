@@ -21,7 +21,9 @@
 </table>
 
 <p align="center">
-  <img src="demo.gif" alt="opencode-rmux demo" width="720">
+  <video src="demo.mp4" width="720" controls>
+    Your browser does not support the video tag.
+  </video>
   <br>
   <em>Just the tip of the iceberg. <a href="TUTORIAL.en.md">See full tutorial →</a></em>
 </p>
