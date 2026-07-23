@@ -26,6 +26,7 @@ export class SessionManager {
   private rmux: RMUXManager
   private config: RMUXPluginConfig
   private activeSplits = new Map<string, string>()
+  private idleBlocked = new Set<string>()
   private splitQueue = Promise.resolve<unknown>(undefined)
   private mainSession: string | null = null
   private permission: PermissionState
@@ -56,14 +57,14 @@ export class SessionManager {
         await this.onPermissionAsked(event.properties)
         break
       case "permission.replied":
-        this.onPermissionReplied(event.properties)
+        await this.onPermissionReplied(event.properties)
         break
       case "question.asked":
         this.onQuestionAsked(event.properties)
         break
       case "question.replied":
       case "question.rejected":
-        this.onQuestionReplied(event.properties)
+        await this.onQuestionReplied(event.properties)
         break
     }
   }
@@ -98,6 +99,7 @@ export class SessionManager {
       return
     }
     this.activeSplits.delete(sessionId)
+    this.idleBlocked.delete(sessionId)
     await this.rmux.closeTarget(target)
   }
 
@@ -134,10 +136,11 @@ export class SessionManager {
 
         const realPanes = [...this.activeSplits.values()].filter(v => v !== "pending").length
         if (realPanes >= this.config.maxPanes) {
-          const oldestId = this.activeSplits.keys().next().value
-          if (oldestId) {
+          for (const [oldestId, val] of this.activeSplits) {
+            if (val === "pending") continue
             this.log("maxPanes reached, recycling:", oldestId.slice(0, 8))
             await this.removeAndClose(oldestId, true)
+            break
           }
         }
 
@@ -196,7 +199,10 @@ export class SessionManager {
     }
 
     if (status?.type === "idle" && this.activeSplits.has(sessionId)) {
-      if (this.hasPendingInput()) return
+      if (this.hasPendingInput()) {
+        this.idleBlocked.add(sessionId)
+        return
+      }
       this.log("idle:", sessionId.slice(0, 8), "keepPaneOnIdle:", this.config.keepPaneOnIdle)
       await this.enqueueSplitOp(async () => {
         await this.removeAndClose(sessionId)
@@ -216,10 +222,11 @@ export class SessionManager {
     }
   }
 
-  private onPermissionReplied(_properties: Record<string, any>): void {
+  private async onPermissionReplied(_properties: Record<string, any>): Promise<void> {
     const id = this.getPermissionRequestID(_properties)
     if (id) {
       this.permission.resolve(id)
+      await this.flushIdleBlocked()
     }
   }
 
@@ -232,10 +239,24 @@ export class SessionManager {
     }
   }
 
-  private onQuestionReplied(_properties: Record<string, any>): void {
+  private async onQuestionReplied(_properties: Record<string, any>): Promise<void> {
     const id = this.getPermissionRequestID(_properties)
     if (id) {
       this.question.resolve(id)
+      await this.flushIdleBlocked()
+    }
+  }
+
+  private async flushIdleBlocked(): Promise<void> {
+    if (this.hasPendingInput() || this.idleBlocked.size === 0) return
+    for (const sessionId of this.idleBlocked) {
+      this.idleBlocked.delete(sessionId)
+      await this.enqueueSplitOp(async () => {
+        await this.removeAndClose(sessionId)
+        if (this.config.notifications?.done !== false) {
+          this.notify(`done: ${sessionId.slice(0, 8)}`)
+        }
+      })
     }
   }
 

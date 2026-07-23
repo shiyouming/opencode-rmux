@@ -20,6 +20,12 @@
 <tr><td><b>TypeScript SDK</b></td><td>Built on official <code>@rmux/sdk</code> — type-safe, no CLI parsing</td></tr>
 </table>
 
+<p align="center">
+  <img src="demo.gif" alt="opencode-rmux demo" width="720">
+  <br>
+  <em>Just the tip of the iceberg. <a href="TUTORIAL.en.md">See full tutorial →</a></em>
+</p>
+
 ---
 
 - [Why opencode-rmux](#why-opencode-rmux)

@@ -15,7 +15,9 @@ const rmuxMocks = vi.hoisted(() => {
       listSessions: vi.fn().mockResolvedValue([{ name: "test-rmux" }]),
       getClient: () => null,
       captureTarget: vi.fn(),
-      closeTarget: vi.fn().mockResolvedValue(undefined),
+      closeTarget: vi.fn(async (target: string) => {
+        return mockCmd("kill-pane", "-t", target)
+      }),
       balanceRightPanes: vi.fn().mockResolvedValue(undefined),
       cmd: mockCmd,
     }
@@ -27,6 +29,23 @@ const rmuxMocks = vi.hoisted(() => {
 vi.mock("../rmux.js", () => ({
   RMUXManager: rmuxMocks.MockRMUXManager,
 }))
+
+vi.mock("../lsof.js", () => ({
+  resolveServerUrl: vi.fn(),
+  resolveServerUrlWithRetry: vi.fn(),
+}))
+
+vi.mock("node:http", () => ({
+  request: vi.fn((_url: string, _opts: any, cb: (res: any) => void) => {
+    const mockReq = { on: vi.fn(), end: vi.fn(), destroy: vi.fn() }
+    setTimeout(() => cb({ statusCode: 200 }), 0)
+    return mockReq
+  }),
+}))
+
+beforeEach(() => {
+  vi.clearAllMocks()
+})
 
 vi.mock("../lsof.js", () => ({
   resolveServerUrl: vi.fn(),

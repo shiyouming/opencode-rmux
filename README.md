@@ -20,6 +20,12 @@
 <tr><td><b>TypeScript SDK</b></td><td>基于官方 <code>@rmux/sdk</code>，类型安全，非命令行解析</td></tr>
 </table>
 
+<p align="center">
+  <img src="demo.gif" alt="opencode-rmux demo" width="720">
+  <br>
+  <em>以上只是冰山一角。<a href="TUTORIAL.md">查看完整玩法 →</a></em>
+</p>
+
 ---
 
 - [为什么选择 opencode-rmux](#为什么选择-opencode-rmux)

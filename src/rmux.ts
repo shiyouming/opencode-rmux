@@ -44,7 +44,6 @@ export class RMUXManager {
       const sessions = await this.client.listSessions()
       return sessions.map((s: Record<string, unknown>) => ({
         name: (s.session_name ?? s.name ?? "unknown") as string,
-        created: false,
       }))
     } catch {
       throw new Error("Failed to list RMUX sessions")
@@ -81,8 +80,10 @@ export class RMUXManager {
         })
       }
       const rightPanes = await mainWindow.panes()
+      const count = rightPanes.length
+      const eachPct = Math.floor(100 / (count + 1))
       return await rightPanes[rightPanes.length - 1].split({
-        direction: "v", ...(shellCommand ? { shellCommand } : {}),
+        direction: "v", size: `${eachPct}%`, ...(shellCommand ? { shellCommand } : {}),
       })
     } catch {
       throw new Error("Failed to create agent pane")
@@ -92,9 +93,9 @@ export class RMUXManager {
   async sendKeys(target: string, keys: string): Promise<void> {
     if (!this.client) throw new Error("RMUX not connected")
     try {
-      if (keys.endsWith(" Enter")) {
-        const text = keys.slice(0, -6)
-        await this.client.sendText(target, text)
+      if (keys === "Enter" || keys.endsWith(" Enter")) {
+        const text = keys === "Enter" ? "" : keys.slice(0, -6)
+        if (text) await this.client.sendText(target, text)
         await this.client.sendKeys(target, "Enter")
       } else {
         await this.client.sendText(target, keys)
@@ -102,7 +103,11 @@ export class RMUXManager {
       if (this.mainSessionName) {
         const mainTarget = `${this.mainSessionName}:0.0`
         if (mainTarget !== target) {
-          await this.client.cmd("select-pane", "-t", mainTarget).catch(() => {})
+          try {
+            await this.client.cmd("select-pane", "-t", mainTarget)
+          } catch {
+            await this.refreshMainSession()
+          }
         }
       }
     } catch {
@@ -143,13 +148,6 @@ export class RMUXManager {
     }
   }
 
-  async closePane(pane: Pane): Promise<void> {
-    try {
-      await pane.close()
-    } catch {
-    }
-  }
-
   async closeSession(name: string): Promise<void> {
     if (!this.client) return
     try {
@@ -165,7 +163,7 @@ export class RMUXManager {
     if (!this.client) return
     try {
       const raw = await this.client.cmd("list-windows", "-t", sessionName, "-F", "#{window_height}")
-      const height = Number(raw.stdout.trim())
+      const height = Number(raw.stdout.trim().split("\n")[0])
       if (!height) return
 
       const rawPanes = await this.client.cmd("list-panes", "-t", sessionName, "-F", "#{pane_index} #{pane_id}")

@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs"
-import { homedir, platform } from "node:os"
+import { homedir } from "node:os"
 import { join } from "node:path"
 
 export interface RMUXNotifications {
@@ -35,9 +35,6 @@ const DEFAULT_CONFIG: RMUXPluginConfig = {
 const SPLIT_SIZE_RE = /^\d+(%|px)$/
 
 function resolveConfigDir(): string {
-  if (platform() === "win32") {
-    return process.env.XDG_CONFIG_HOME || join(homedir(), ".config")
-  }
   return process.env.XDG_CONFIG_HOME || join(homedir(), ".config")
 }
 

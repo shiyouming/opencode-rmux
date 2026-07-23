@@ -67,6 +67,18 @@ describe("MonitorManager", () => {
     expect(result.stoppedReason).toBe("timeout")
   })
 
+  it("collectLines returns streamEnd when stream ends", async () => {
+    lineStream.next
+      .mockResolvedValueOnce("line1")
+      .mockResolvedValueOnce("line2")
+      .mockResolvedValueOnce(null)
+
+    const result = await mm.collectLines({} as any, { timeout: 10, maxLines: 100 })
+
+    expect(result.lines).toEqual(["line1", "line2"])
+    expect(result.stoppedReason).toBe("streamEnd")
+  })
+
   it("waitForPattern returns matching line", async () => {
     lineStream.next
       .mockResolvedValueOnce("foo")

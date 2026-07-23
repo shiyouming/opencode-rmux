@@ -51,7 +51,8 @@ function formatCreateSession(rmux: RMUXManager) {
         let msg = `Created RMUX session "${args.name}"${metaInfo}`
         if (args.command) {
           const pane = session.window(0).pane(0)
-          await rmux.sendTextToPane(pane, args.command + "\n")
+          await rmux.sendTextToPane(pane, args.command)
+          await rmux.sendTextToPane(pane, "\n")
           msg += ` and running command: ${args.command}`
         }
         return msg

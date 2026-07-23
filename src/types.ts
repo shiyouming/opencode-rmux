@@ -2,7 +2,6 @@ export type { RMUXPluginConfig } from "./config.js"
 
 export interface SessionInfo {
   name: string
-  created: boolean
 }
 
 export interface PaneMeta {
@@ -27,23 +26,6 @@ export interface SessionMeta {
   width: number
   height: number
 }
-
-export type StreamEventType = 'line' | 'data' | 'render'
-
-export interface StreamEvent {
-  type: StreamEventType
-  data: string
-  timestamp: number
-  paneTarget: string
-}
-
-export interface SplitOp<T = unknown> {
-  fn: () => Promise<T>
-  resolve: (value: T) => void
-  reject: (reason: unknown) => void
-}
-
-export type MatchLevel = 'exact' | 'fuzzy' | 'none'
 
 export interface FindPanesQuery {
   sessionName?: string

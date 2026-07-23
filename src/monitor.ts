@@ -120,18 +120,20 @@ export class MonitorManager {
     const lines: string[] = []
     let stoppedReason: "timeout" | "maxLines" | "streamEnd" | "error" = "timeout"
     const deadline = Date.now() + opts.timeout * 1000
+    const TIMEOUT = Symbol("timeout")
 
     try {
       while (Date.now() < deadline && lines.length < opts.maxLines) {
         const remaining = Math.max(0, deadline - Date.now())
-        const line = await Promise.race([
+        const result = await Promise.race([
           stream.next(1),
-          new Promise<null>(resolve =>
-            setTimeout(() => resolve(null), remaining)
+          new Promise<typeof TIMEOUT>(resolve =>
+            setTimeout(() => resolve(TIMEOUT), remaining)
           ),
         ])
-        if (line === null) continue
-        lines.push(line)
+        if (result === TIMEOUT) continue
+        if (result === null) { stoppedReason = "streamEnd"; break }
+        lines.push(result)
       }
       if (lines.length >= opts.maxLines) stoppedReason = "maxLines"
     } catch {
@@ -152,21 +154,23 @@ export class MonitorManager {
     const deadline = Date.now() + timeout * 1000
     const output = await PaneOutputStream.open(pane)
     const stream = new PaneLineStream(output)
+    const TIMEOUT = Symbol("timeout")
 
     try {
       while (Date.now() < deadline) {
         const remaining = Math.max(0, deadline - Date.now())
-        const line = await Promise.race([
+        const result = await Promise.race([
           stream.next(1),
-          new Promise<null>(resolve =>
-            setTimeout(() => resolve(null), remaining)
+          new Promise<typeof TIMEOUT>(resolve =>
+            setTimeout(() => resolve(TIMEOUT), remaining)
           ),
         ])
-        if (line === null) continue
+        if (result === TIMEOUT) continue
+        if (result === null) break
         if (typeof pattern === "string") {
-          if (line.includes(pattern)) return line
+          if (result.includes(pattern)) return result
         } else {
-          if (pattern.test(line)) return line
+          if (pattern.test(result)) return result
         }
       }
     } finally {
