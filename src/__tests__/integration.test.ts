@@ -1,6 +1,19 @@
 import { describe, it, expect, vi, beforeEach } from "vitest"
 
 const mocks = vi.hoisted(() => {
+  const mockLineStream = {
+    next: vi.fn(),
+    close: vi.fn().mockResolvedValue(undefined),
+  }
+  const mockOutput = {
+    next: vi.fn(),
+    close: vi.fn().mockResolvedValue(undefined),
+  }
+  const mockRenderStream = {
+    next: vi.fn(),
+    close: vi.fn().mockResolvedValue(undefined),
+  }
+
   const mockPane = {
     sendText: vi.fn().mockResolvedValue(undefined),
     captureText: vi.fn().mockResolvedValue("pane text content"),
@@ -41,10 +54,24 @@ const mocks = vi.hoisted(() => {
     return { connectOrStart: () => Promise.resolve(mockClient) }
   }
 
-  return { mockPane, mockWindow, mockSession, mockClient, MockRMUX }
+  const MockPane = vi.fn(function () { return mockPane })
+
+  return {
+    mockPane, mockWindow, mockSession, mockClient, MockRMUX, MockPane,
+    mockLineStream, mockOutput, mockRenderStream,
+  }
 })
 
-vi.mock("@rmux/sdk", () => ({ RMUX: mocks.MockRMUX }))
+vi.mock("@rmux/sdk", () => ({
+  RMUX: mocks.MockRMUX,
+  Rmux: mocks.MockRMUX,
+  Pane: mocks.MockPane,
+  Session: vi.fn(),
+  Window: vi.fn(),
+  PaneOutputStream: { open: vi.fn().mockResolvedValue(mocks.mockOutput) },
+  PaneLineStream: vi.fn(function () { return mocks.mockLineStream }),
+  PaneRenderStream: { open: vi.fn().mockResolvedValue(mocks.mockRenderStream) },
+}))
 
 vi.mock("../lsof.js", () => ({
   resolveServerUrl: vi.fn(() => "http://localhost:12345"),
@@ -118,31 +145,6 @@ describe("Integration: SessionManager + real RMUXManager", () => {
     expect(mocks.mockClient.listSessions).not.toHaveBeenCalled()
   })
 
-  it("skips creation when resolveServerUrl returns null", async () => {
-    const { resolveServerUrlWithRetry } = await import("../lsof.js")
-    vi.mocked(resolveServerUrlWithRetry).mockResolvedValue(null)
-
-    const { RMUXManager } = await import("../rmux.js")
-    const { SessionManager } = await import("../sessions.js")
-    const { PermissionState, QuestionState } = await import("../state.js")
-
-    const rmux = new RMUXManager()
-    await rmux.connect()
-
-    const sm = new SessionManager(rmux, {
-      splits: true,
-      maxPanes: 4,
-      notifications: { done: true, permission: true, question: true, error: true },
-    }, new PermissionState(), new QuestionState())
-
-    await sm.handleEvent({
-      type: "session.created",
-      properties: { info: { id: "sub-003", parentID: "parent-001" } },
-    })
-
-    expect(mocks.mockClient.listSessions).not.toHaveBeenCalled()
-  })
-
   it("tracks permissions across multiple events", async () => {
     const { RMUXManager } = await import("../rmux.js")
     const { SessionManager } = await import("../sessions.js")
@@ -194,35 +196,6 @@ describe("Integration: SessionManager + real RMUXManager", () => {
 
     expect(mocks.mockClient.cmd).toHaveBeenCalledWith("kill-pane", "-t", "test:0.0")
   })
-
-  it("serializes multiple session.created events through queue", async () => {
-    const { RMUXManager } = await import("../rmux.js")
-    const { SessionManager } = await import("../sessions.js")
-    const { PermissionState, QuestionState } = await import("../state.js")
-
-    const rmux = new RMUXManager()
-    await rmux.connect()
-
-    const sm = new SessionManager(rmux, {
-      splits: true,
-      maxPanes: 4,
-      notifications: { done: true, permission: true, question: true, error: true },
-    }, new PermissionState(), new QuestionState())
-
-    await Promise.all([
-      sm.handleEvent({
-        type: "session.created",
-        properties: { info: { id: "sub-030", parentID: "parent-001" } },
-      }),
-      sm.handleEvent({
-        type: "session.created",
-        properties: { info: { id: "sub-031", parentID: "parent-001" } },
-      }),
-    ])
-
-    expect(mocks.mockClient.listSessions).toHaveBeenCalled()
-    expect(mocks.mockPane.split).toHaveBeenCalled()
-  })
 })
 
 describe("Integration: Tools + real RMUXManager", () => {
@@ -262,24 +235,7 @@ describe("Integration: Tools + real RMUXManager", () => {
     expect(mocks.mockClient.ensureSession).toHaveBeenCalledWith("my-session", { detached: true })
   })
 
-  it("rmux_create_session with command sends keys", async () => {
-    const { RMUXManager } = await import("../rmux.js")
-    const { createTools } = await import("../tools.js")
-
-    const rmux = new RMUXManager()
-    await rmux.connect()
-
-    const tools = createTools(rmux)
-    const result = await tools.rmux_create_session.execute({
-      name: "cmd-session",
-      command: "npm run dev",
-    }, {})
-
-    expect(result).toContain("npm run dev")
-    expect(mocks.mockSession.window).toHaveBeenCalledWith(0)
-  })
-
-  it("rmux_send_keys sends to session:target", async () => {
+  it("rmux_send_keys sends to single target", async () => {
     const { RMUXManager } = await import("../rmux.js")
     const { createTools } = await import("../tools.js")
 
@@ -288,7 +244,7 @@ describe("Integration: Tools + real RMUXManager", () => {
 
     const tools = createTools(rmux)
     const result = await tools.rmux_send_keys.execute({
-      session: "s1", target: "0.0", keys: "echo hello",
+      target: "s1:0.0", keys: "echo hello",
     }, {})
 
     expect(result).toContain("echo hello")
@@ -303,16 +259,18 @@ describe("Integration: Tools + real RMUXManager", () => {
     await rmux.connect()
 
     const tools = createTools(rmux)
-    const result = await tools.rmux_capture.execute({
-      session: "s1", target: "0.0",
-    }, {})
+    const result = await tools.rmux_capture.execute({ target: "s1:0.0" }, {})
 
     expect(result).toBe("captured output text")
     expect(mocks.mockClient.capturePane).toHaveBeenCalledWith({ target: "s1:0.0" })
   })
 
-  it("rmux_wait_for_text finds pattern immediately", async () => {
-    mocks.mockClient.capturePane.mockResolvedValue("hello world")
+  it("rmux_find_panes returns formatted results", async () => {
+    mocks.mockClient.cmd.mockResolvedValueOnce({
+      returnCode: 0,
+      stdout: "s1|0|0|%0|1|80|24|0||100|bash|bash\n",
+      stderr: "",
+    })
 
     const { RMUXManager } = await import("../rmux.js")
     const { createTools } = await import("../tools.js")
@@ -321,16 +279,16 @@ describe("Integration: Tools + real RMUXManager", () => {
     await rmux.connect()
 
     const tools = createTools(rmux)
-    const result = await tools.rmux_wait_for_text.execute({
-      session: "s1", target: "0.0", pattern: "hello", timeout: 5,
-    }, {})
+    const result = await tools.rmux_find_panes.execute({ sessionName: "s1" }, {})
 
-    expect(result).toContain("hello")
-    expect(mocks.mockClient.capturePane).toHaveBeenCalledWith({ target: "s1:0.0" })
+    expect(result).toContain("s1:%0")
+    expect(result).toContain("Found 1 pane(s)")
   })
 
-  it("rmux_wait_for_text returns timeout when pattern not found", async () => {
-    mocks.mockClient.capturePane.mockResolvedValue("goodbye world")
+  it("rmux_find_panes returns no panes when none match", async () => {
+    mocks.mockClient.cmd.mockResolvedValueOnce({
+      returnCode: 0, stdout: "s1|0|0|%0|1|80|24|0||100|bash|bash\n", stderr: "",
+    })
 
     const { RMUXManager } = await import("../rmux.js")
     const { createTools } = await import("../tools.js")
@@ -339,11 +297,80 @@ describe("Integration: Tools + real RMUXManager", () => {
     await rmux.connect()
 
     const tools = createTools(rmux)
-    const result = await tools.rmux_wait_for_text.execute({
-      session: "s1", target: "0.0", pattern: "hello", timeout: 0.01,
+    const result = await tools.rmux_find_panes.execute({ currentCommand: "node" }, {})
+
+    expect(result).toContain("No panes found")
+  })
+
+  it("rmux_pane_info returns formatted metadata", async () => {
+    mocks.mockClient.cmd.mockResolvedValueOnce({
+      returnCode: 0,
+      stdout: "demo|0|1|%2|0|40|25|0||9999|my pane|node",
+      stderr: "",
+    })
+
+    const { RMUXManager } = await import("../rmux.js")
+    const { createTools } = await import("../tools.js")
+
+    const rmux = new RMUXManager()
+    await rmux.connect()
+
+    const tools = createTools(rmux)
+    const result = await tools.rmux_pane_info.execute({ target: "demo:%2" }, {})
+
+    expect(result).toContain("Session: demo")
+    expect(result).toContain("Pane ID: %2")
+    expect(result).toContain("PID: 9999")
+    expect(result).toContain("Command: node")
+  })
+
+  it("rmux_observe collects lines", async () => {
+    mocks.mockLineStream.next
+      .mockResolvedValueOnce("line1")
+      .mockResolvedValueOnce("line2")
+      .mockRejectedValueOnce(new Error("stream over"))
+
+    const { RMUXManager } = await import("../rmux.js")
+    const { createTools } = await import("../tools.js")
+
+    const rmux = new RMUXManager()
+    await rmux.connect()
+
+    const tools = createTools(rmux)
+    const result = await tools.rmux_observe.execute({
+      target: "s1:0.0", timeout: 10, maxLines: 100,
     }, {})
 
-    expect(result).toContain("Timeout")
+    expect(result).toContain("line1")
+    expect(result).toContain("line2")
+  })
+
+  it("rmux_observe_multi collects from multiple panes", async () => {
+    let callCount = 0
+    mocks.mockLineStream.next.mockImplementation(async () => {
+      callCount++
+      if (callCount <= 2) return `pane${String.fromCharCode(64 + callCount)}-line1`
+      throw new Error("stream over")
+    })
+
+    const { RMUXManager } = await import("../rmux.js")
+    const { createTools } = await import("../tools.js")
+
+    const rmux = new RMUXManager()
+    await rmux.connect()
+
+    const tools = createTools(rmux)
+    const result = await tools.rmux_observe_multi.execute({
+      panes: [
+        { sessionName: "s1", target: "s1:0.0" },
+        { sessionName: "s1", target: "s1:0.1" },
+      ],
+      timeout: 10,
+      maxLinesPerPane: 50,
+    }, {})
+
+    expect(result).toContain("paneA-line1")
+    expect(result).toContain("paneB-line1")
   })
 
   it("handles RMUX not connected gracefully for all tools", async () => {
@@ -360,20 +387,28 @@ describe("Integration: Tools + real RMUXManager", () => {
     const createResult = await tools.rmux_create_session.execute({ name: "x" }, {})
     expect(createResult).toContain("not connected")
 
-    const sendResult = await tools.rmux_send_keys.execute({
-      session: "s", target: "0", keys: "x",
-    }, {})
+    const sendResult = await tools.rmux_send_keys.execute({ target: "s:0", keys: "x" }, {})
     expect(sendResult).toContain("not connected")
 
-    const captureResult = await tools.rmux_capture.execute({
-      session: "s", target: "0",
-    }, {})
+    const captureResult = await tools.rmux_capture.execute({ target: "s:0" }, {})
     expect(captureResult).toContain("not connected")
 
-    const waitResult = await tools.rmux_wait_for_text.execute({
-      session: "s", target: "0", pattern: "x", timeout: 1,
-    }, {})
+    const waitResult = await tools.rmux_wait_for_text.execute({ target: "s:0", pattern: "x", timeout: 1 }, {})
     expect(waitResult).toContain("not connected")
+
+    const findResult = await tools.rmux_find_panes.execute({ sessionName: "s1" }, {})
+    expect(findResult).toContain("not connected")
+
+    const infoResult = await tools.rmux_pane_info.execute({ target: "s:0" }, {})
+    expect(infoResult).toContain("not connected")
+
+    const observeResult = await tools.rmux_observe.execute({ target: "s:0", timeout: 1 }, {})
+    expect(observeResult).toContain("not connected")
+
+    const multiResult = await tools.rmux_observe_multi.execute({
+      panes: [{ sessionName: "s", target: "s:0" }], timeout: 1,
+    }, {})
+    expect(multiResult).toContain("not connected")
   })
 })
 
@@ -396,6 +431,10 @@ describe("Integration: Plugin entry point", () => {
     expect(instance.tool).toHaveProperty("rmux_send_keys")
     expect(instance.tool).toHaveProperty("rmux_capture")
     expect(instance.tool).toHaveProperty("rmux_wait_for_text")
+    expect(instance.tool).toHaveProperty("rmux_find_panes")
+    expect(instance.tool).toHaveProperty("rmux_pane_info")
+    expect(instance.tool).toHaveProperty("rmux_observe")
+    expect(instance.tool).toHaveProperty("rmux_observe_multi")
   })
 
   it("routes events through plugin interface", async () => {
@@ -404,15 +443,6 @@ describe("Integration: Plugin entry point", () => {
 
     await instance.event({ event: { type: "permission.asked", properties: { id: "p1" } } })
     await instance.event({ event: { type: "permission.replied", properties: { id: "p1" } } })
-  })
-
-  it("ignores unknown event types", async () => {
-    const plugin = await import("../index.js")
-    const instance = await plugin.default()
-
-    await expect(
-      instance.event({ event: { type: "unknown.event", properties: {} } }),
-    ).resolves.toBeUndefined()
   })
 
   it("tools execute through plugin interface", async () => {

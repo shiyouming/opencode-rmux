@@ -1,11 +1,33 @@
 import { describe, it, expect, vi, beforeEach } from "vitest"
 
+const mockLineStream = vi.hoisted(() => ({
+  next: vi.fn(),
+  close: vi.fn().mockResolvedValue(undefined),
+}))
+
+const mockOutputStream = vi.hoisted(() => ({
+  next: vi.fn(),
+  close: vi.fn().mockResolvedValue(undefined),
+}))
+
+const mockRenderStream = vi.hoisted(() => ({
+  next: vi.fn(),
+  close: vi.fn().mockResolvedValue(undefined),
+}))
+
+vi.mock("@rmux/sdk", () => ({
+  PaneOutputStream: { open: vi.fn().mockResolvedValue(mockOutputStream) },
+  PaneLineStream: vi.fn(function () { return mockLineStream }),
+  PaneRenderStream: { open: vi.fn().mockResolvedValue(mockRenderStream) },
+}))
+
 const rmuxMocks = vi.hoisted(() => {
   const mockListSessions = vi.fn()
   const mockEnsureSession = vi.fn()
   const mockSendTextToPane = vi.fn()
   const mockSendKeys = vi.fn()
   const mockCaptureTarget = vi.fn()
+  const mockPaneFromTarget = vi.fn()
   let isConnected = true
 
   function MockRMUXManager() {
@@ -16,6 +38,7 @@ const rmuxMocks = vi.hoisted(() => {
       sendTextToPane: mockSendTextToPane,
       sendKeys: mockSendKeys,
       captureTarget: mockCaptureTarget,
+      paneFromTarget: mockPaneFromTarget,
       cmd: vi.fn(),
       getClient: () => null,
     }
@@ -27,6 +50,7 @@ const rmuxMocks = vi.hoisted(() => {
     set isConnected(v) { isConnected = v },
     mockListSessions, mockEnsureSession,
     mockSendTextToPane, mockSendKeys, mockCaptureTarget,
+    mockPaneFromTarget,
   }
 })
 
@@ -50,6 +74,7 @@ function createMockContext() {
 describe("tools", () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockLineStream.next.mockReset()
     rmuxMocks.isConnected = true
   })
 
@@ -90,7 +115,6 @@ describe("tools", () => {
   })
 
   it("rmux_create_session creates session with name", async () => {
-    const mockPane = { sendText: vi.fn() }
     const mockWindow = { pane: vi.fn().mockReturnValue({ sendText: vi.fn() }) }
     rmuxMocks.mockEnsureSession.mockResolvedValue({
       window: vi.fn().mockReturnValue(mockWindow),
@@ -127,12 +151,12 @@ describe("tools", () => {
     expect(rmuxMocks.mockSendTextToPane).toHaveBeenCalled()
   })
 
-  it("rmux_send_keys sends keystrokes", async () => {
+  it("rmux_send_keys sends keystrokes to single target", async () => {
     const { createTools } = await import("../tools.js")
     const mgr = new rmuxMocks.MockRMUXManager()
     const tools = createTools(mgr)
     const result = await tools.rmux_send_keys.execute(
-      { session: "test", target: "0", keys: "echo hello" },
+      { target: "test:0", keys: "echo hello" },
       createMockContext(),
     )
 
@@ -147,7 +171,7 @@ describe("tools", () => {
     const mgr = new rmuxMocks.MockRMUXManager()
     const tools = createTools(mgr)
     const result = await tools.rmux_capture.execute(
-      { session: "test", target: "0" },
+      { target: "test:0" },
       createMockContext(),
     )
 
@@ -162,42 +186,147 @@ describe("tools", () => {
     const mgr = new rmuxMocks.MockRMUXManager()
     const tools = createTools(mgr)
     const result = await tools.rmux_capture.execute(
-      { session: "test", target: "0" },
+      { target: "test:0" },
       createMockContext(),
     )
 
     expect(result).toBe("(empty pane)")
   })
 
-  it("rmux_wait_for_text finds text pattern", async () => {
-    rmuxMocks.mockCaptureTarget
-      .mockResolvedValueOnce("")
-      .mockResolvedValueOnce("still waiting")
+  it("rmux_wait_for_text finds text pattern via MonitorManager", async () => {
+    rmuxMocks.mockPaneFromTarget.mockReturnValue({})
+    mockLineStream.next
+      .mockResolvedValueOnce("some output")
       .mockResolvedValueOnce("found hello world")
+      .mockResolvedValueOnce(null)
 
     const { createTools } = await import("../tools.js")
     const mgr = new rmuxMocks.MockRMUXManager()
     const tools = createTools(mgr)
     const result = await tools.rmux_wait_for_text.execute(
-      { session: "test", target: "0", pattern: "hello", timeout: 5 },
+      { target: "test:0", pattern: "hello", timeout: 5 },
       createMockContext(),
     )
 
     expect(result).toContain('Found pattern "hello"')
+    expect(rmuxMocks.mockPaneFromTarget).toHaveBeenCalledWith("test:0")
   })
 
   it("rmux_wait_for_text times out when pattern not found", async () => {
-    rmuxMocks.mockCaptureTarget.mockResolvedValue("no match here")
+    rmuxMocks.mockPaneFromTarget.mockReturnValue({})
+    mockLineStream.next.mockResolvedValue("no match")
 
     const { createTools } = await import("../tools.js")
     const mgr = new rmuxMocks.MockRMUXManager()
     const tools = createTools(mgr)
     const result = await tools.rmux_wait_for_text.execute(
-      { session: "test", target: "0", pattern: "missing", timeout: 1 },
+      { target: "test:0", pattern: "missing", timeout: 0.01 },
       createMockContext(),
     )
 
     expect(result).toContain("Timeout")
+  })
+
+  it("rmux_find_panes returns found panes", async () => {
+    const { RMUXManager } = await import("../rmux.js")
+    rmuxMocks.mockPaneFromTarget.mockReturnValue(null)
+    const mgr = new rmuxMocks.MockRMUXManager()
+    mgr.findPanes = vi.fn().mockResolvedValue([
+      { sessionName: "s1", paneId: "%0", paneIndex: 0, currentCommand: "bash", pid: 100 },
+    ])
+
+    const { createTools } = await import("../tools.js")
+    const tools = createTools(mgr)
+    const result = await tools.rmux_find_panes.execute(
+      { sessionName: "s1" },
+      createMockContext(),
+    )
+
+    expect(result).toContain("Found 1 pane(s)")
+    expect(result).toContain("s1:%0")
+  })
+
+  it("rmux_find_panes returns no panes when none match", async () => {
+    const mgr = new rmuxMocks.MockRMUXManager()
+    mgr.findPanes = vi.fn().mockResolvedValue([])
+
+    const { createTools } = await import("../tools.js")
+    const tools = createTools(mgr)
+    const result = await tools.rmux_find_panes.execute(
+      { currentCommand: "node" },
+      createMockContext(),
+    )
+
+    expect(result).toContain("No panes found")
+  })
+
+  it("rmux_pane_info returns formatted metadata", async () => {
+    const mgr = new rmuxMocks.MockRMUXManager()
+    mgr.getPaneMeta = vi.fn().mockResolvedValue({
+      sessionName: "demo", paneId: "%2", windowIndex: 0, paneIndex: 1,
+      active: false, dead: false, deadStatus: null,
+      width: 40, height: 25, pid: 9999, title: "my pane", currentCommand: "node",
+    })
+
+    const { createTools } = await import("../tools.js")
+    const tools = createTools(mgr)
+    const result = await tools.rmux_pane_info.execute(
+      { target: "demo:%2" },
+      createMockContext(),
+    )
+
+    expect(result).toContain("Session: demo")
+    expect(result).toContain("Pane ID: %2")
+    expect(result).toContain("PID: 9999")
+    expect(result).toContain("Command: node")
+  })
+
+  it("rmux_observe collects lines", async () => {
+    rmuxMocks.mockPaneFromTarget.mockReturnValue({})
+    let obsCalls = 0
+    mockLineStream.next.mockImplementation(async () => {
+      obsCalls++
+      if (obsCalls <= 2) return `line${obsCalls}`
+      throw new Error("stream over")
+    })
+
+    const { createTools } = await import("../tools.js")
+    const mgr = new rmuxMocks.MockRMUXManager()
+    const tools = createTools(mgr)
+    const result = await tools.rmux_observe.execute(
+      { target: "test:0", timeout: 10, maxLines: 100 },
+      createMockContext(),
+    )
+
+    const parsed = JSON.parse(result)
+    expect(parsed.lines).toContain("line1")
+    expect(parsed.lines).toContain("line2")
+    expect(parsed.totalLines).toBe(2)
+  })
+
+  it("rmux_observe_multi collects from multiple panes", async () => {
+    rmuxMocks.mockPaneFromTarget.mockReturnValue({})
+    let multiCalls = 0
+    mockLineStream.next.mockImplementation(async () => {
+      multiCalls++
+      if (multiCalls <= 2) return `pane${String.fromCharCode(64 + multiCalls)} line`
+      throw new Error("stream over")
+    })
+
+    const { createTools } = await import("../tools.js")
+    const mgr = new rmuxMocks.MockRMUXManager()
+    const tools = createTools(mgr)
+    const result = await tools.rmux_observe_multi.execute({
+      panes: [
+        { sessionName: "s1", target: "s1:0.0" },
+        { sessionName: "s1", target: "s1:0.1" },
+      ],
+      timeout: 10,
+      maxLinesPerPane: 50,
+    }, createMockContext())
+
+    const parsed = JSON.parse(result)
+    expect(parsed).toHaveLength(2)
   })
 
   it("all tools return not-connected message when RMUX unavailable", async () => {
@@ -211,9 +340,13 @@ describe("tools", () => {
     const results = await Promise.all([
       tools.rmux_list_sessions.execute({}, ctx),
       tools.rmux_create_session.execute({ name: "test" }, ctx),
-      tools.rmux_send_keys.execute({ session: "s", target: "0", keys: "k" }, ctx),
-      tools.rmux_capture.execute({ session: "s", target: "0" }, ctx),
-      tools.rmux_wait_for_text.execute({ session: "s", target: "0", pattern: "p" }, ctx),
+      tools.rmux_send_keys.execute({ target: "s:0", keys: "k" }, ctx),
+      tools.rmux_capture.execute({ target: "s:0" }, ctx),
+      tools.rmux_wait_for_text.execute({ target: "s:0", pattern: "p" }, ctx),
+      tools.rmux_find_panes.execute({ sessionName: "s" }, ctx),
+      tools.rmux_pane_info.execute({ target: "s:0" }, ctx),
+      tools.rmux_observe.execute({ target: "s:0" }, ctx),
+      tools.rmux_observe_multi.execute({ panes: [{ sessionName: "s", target: "s:0" }] }, ctx),
     ])
 
     for (const result of results) {

@@ -1,5 +1,6 @@
 import { tool, type ToolContext } from "@opencode-ai/plugin"
 import { RMUXManager } from "./rmux.js"
+import { MonitorManager } from "./monitor.js"
 
 interface ToolArgs {
   [key: string]: any
@@ -53,9 +54,8 @@ function formatCreateSession(rmux: RMUXManager) {
 
 function formatSendKeys(rmux: RMUXManager) {
   return tool({
-    description: "Send keystrokes to a specific RMUX pane identified by session and target",
+    description: "Send keystrokes to an RMUX pane (target as single string, e.g. 'demo:%1' or '%1')",
     args: {
-      session: tool.schema.string(),
       target: tool.schema.string(),
       keys: tool.schema.string(),
     },
@@ -64,9 +64,8 @@ function formatSendKeys(rmux: RMUXManager) {
         if (!rmux.isConnected()) {
           return "RMUX daemon is not connected. Ensure the rmux binary is installed and running."
         }
-        const target = `${args.session}:${args.target}`
-        await rmux.sendKeys(target, args.keys)
-        return `Sent keys to ${target}: ${args.keys}`
+        await rmux.sendKeys(args.target, args.keys)
+        return `Sent keys to ${args.target}: ${args.keys}`
       } catch (error) {
         return `Error sending keys: ${error instanceof Error ? error.message : String(error)}`
       }
@@ -76,9 +75,8 @@ function formatSendKeys(rmux: RMUXManager) {
 
 function formatCapture(rmux: RMUXManager) {
   return tool({
-    description: "Capture the current screen content of an RMUX pane as text",
+    description: "Capture pane screen content as text (target as single string, e.g. 'demo:%1' or '%1')",
     args: {
-      session: tool.schema.string(),
       target: tool.schema.string(),
     },
     async execute(args: ToolArgs, _context: ToolContext) {
@@ -86,8 +84,7 @@ function formatCapture(rmux: RMUXManager) {
         if (!rmux.isConnected()) {
           return "RMUX daemon is not connected. Ensure the rmux binary is installed and running."
         }
-        const target = `${args.session}:${args.target}`
-        const output = await rmux.captureTarget(target)
+        const output = await rmux.captureTarget(args.target)
         return output || "(empty pane)"
       } catch (error) {
         return `Error capturing pane: ${error instanceof Error ? error.message : String(error)}`
@@ -98,9 +95,8 @@ function formatCapture(rmux: RMUXManager) {
 
 function formatWaitForText(rmux: RMUXManager) {
   return tool({
-    description: "Wait for a text pattern to appear in a pane's output",
+    description: "Wait for a text pattern to appear in a pane (target as single string)",
     args: {
-      session: tool.schema.string(),
       target: tool.schema.string(),
       pattern: tool.schema.string(),
       timeout: tool.schema.number().optional().default(30),
@@ -110,18 +106,149 @@ function formatWaitForText(rmux: RMUXManager) {
         if (!rmux.isConnected()) {
           return "RMUX daemon is not connected. Ensure the rmux binary is installed and running."
         }
-        const targetKey = `${args.session}:${args.target}`
-        const deadline = Date.now() + (args.timeout as number) * 1000
-        while (Date.now() < deadline) {
-          const output = await rmux.captureTarget(targetKey)
-          if (output && output.includes(args.pattern as string)) {
-            return `Found pattern "${args.pattern}" in pane ${targetKey}`
-          }
-          await new Promise(r => setTimeout(r, 500))
+        const pane = rmux.paneFromTarget(args.target)
+        if (!pane) return `Cannot resolve pane from target: ${args.target}`
+        const monitor = new MonitorManager()
+        const matched = await monitor.waitForPattern(pane, args.pattern, { timeout: args.timeout })
+        if (matched !== null) {
+          return `Found pattern "${args.pattern}" in pane ${args.target}: "${matched}"`
         }
-        return `Timeout waiting for pattern "${args.pattern}" in pane ${targetKey}`
+        return `Timeout waiting for pattern "${args.pattern}" in pane ${args.target}`
       } catch (error) {
         return `Error waiting for text: ${error instanceof Error ? error.message : String(error)}`
+      }
+    },
+  })
+}
+
+function formatFindPanes(rmux: RMUXManager) {
+  return tool({
+    description: "Find panes by session name, command, title, or status",
+    args: {
+      sessionName: tool.schema.string().optional(),
+      currentCommand: tool.schema.string().optional(),
+      title: tool.schema.string().optional(),
+      active: tool.schema.boolean().optional(),
+      dead: tool.schema.boolean().optional(),
+    },
+    async execute(args: ToolArgs, _context: ToolContext) {
+      try {
+        if (!rmux.isConnected()) {
+          return "RMUX daemon is not connected. Ensure the rmux binary is installed and running."
+        }
+        const query: Record<string, unknown> = {}
+        for (const key of ["sessionName", "currentCommand", "title", "active", "dead"] as const) {
+          if (args[key] !== undefined) query[key] = args[key]
+        }
+        const panes = await rmux.findPanes(query)
+        if (panes.length === 0) return "No panes found matching the query."
+        const lines = panes.map(p =>
+          `${p.sessionName}:${p.paneId} (idx:${p.paneIndex}, cmd:${p.currentCommand}, pid:${p.pid})`
+        )
+        return `Found ${panes.length} pane(s):\n${lines.join("\n")}`
+      } catch (error) {
+        return `Error finding panes: ${error instanceof Error ? error.message : String(error)}`
+      }
+    },
+  })
+}
+
+function formatPaneInfo(rmux: RMUXManager) {
+  return tool({
+    description: "Get detailed pane metadata (PID, command, dimensions)",
+    args: {
+      target: tool.schema.string(),
+    },
+    async execute(args: ToolArgs, _context: ToolContext) {
+      try {
+        if (!rmux.isConnected()) {
+          return "RMUX daemon is not connected. Ensure the rmux binary is installed and running."
+        }
+        const meta = await rmux.getPaneMeta(args.target)
+        const lines = [
+          `Session: ${meta.sessionName}`,
+          `Pane ID: ${meta.paneId}`,
+          `Window: ${meta.windowIndex}  Pane Index: ${meta.paneIndex}`,
+          `Active: ${meta.active}  Dead: ${meta.dead}${meta.deadStatus !== null ? ` (status ${meta.deadStatus})` : ""}`,
+          `Size: ${meta.width}x${meta.height}`,
+          `PID: ${meta.pid ?? "N/A"}`,
+          `Title: ${meta.title || "(empty)"}`,
+          `Command: ${meta.currentCommand || "(none)"}`,
+        ]
+        return lines.join("\n")
+      } catch (error) {
+        return `Error getting pane info: ${error instanceof Error ? error.message : String(error)}`
+      }
+    },
+  })
+}
+
+function formatObserve(rmux: RMUXManager) {
+  return tool({
+    description: "Subscribe to pane output stream, block and return collected lines",
+    args: {
+      target: tool.schema.string(),
+      timeout: tool.schema.number().optional().default(15),
+      maxLines: tool.schema.number().optional().default(100),
+    },
+    async execute(args: ToolArgs, _context: ToolContext) {
+      try {
+        if (!rmux.isConnected()) {
+          return "RMUX daemon is not connected. Ensure the rmux binary is installed and running."
+        }
+        const pane = rmux.paneFromTarget(args.target)
+        if (!pane) return `Cannot resolve pane from target: ${args.target}`
+        const monitor = new MonitorManager()
+        const result = await monitor.collectLines(pane, {
+          timeout: args.timeout,
+          maxLines: args.maxLines,
+        })
+        return JSON.stringify({
+          lines: result.lines,
+          stoppedReason: result.stoppedReason,
+          totalLines: result.lines.length,
+        }, null, 2)
+      } catch (error) {
+        return `Error observing pane: ${error instanceof Error ? error.message : String(error)}`
+      }
+    },
+  })
+}
+
+function formatObserveMulti(rmux: RMUXManager) {
+  return tool({
+    description: "Subscribe to multiple pane streams simultaneously",
+    args: {
+      panes: tool.schema.array(tool.schema.object({
+        sessionName: tool.schema.string(),
+        target: tool.schema.string(),
+      })),
+      timeout: tool.schema.number().optional().default(15),
+      maxLinesPerPane: tool.schema.number().optional().default(50),
+    },
+    async execute(args: ToolArgs, _context: ToolContext) {
+      try {
+        if (!rmux.isConnected()) {
+          return "RMUX daemon is not connected. Ensure the rmux binary is installed and running."
+        }
+        const paneList = args.panes as Array<{ sessionName: string; target: string }>
+        if (!paneList || paneList.length === 0) {
+          return "No panes specified."
+        }
+        const monitor = new MonitorManager()
+        const tasks = paneList.map(async p => {
+          const pane = rmux.paneFromTarget(p.target)
+          if (!pane) return { target: p.target, error: "Cannot resolve pane" }
+          const result = await monitor.collectLines(pane, {
+            timeout: args.timeout,
+            maxLines: args.maxLinesPerPane,
+          })
+          return { target: p.target, lines: result.lines, stoppedReason: result.stoppedReason }
+        })
+        const results = await Promise.all(tasks)
+        return JSON.stringify(results, null, 2)
+      } catch (error) {
+        return `Error observing multiple panes: ${error instanceof Error ? error.message : String(error)}`
       }
     },
   })
@@ -138,5 +265,9 @@ export function createTools(rmux: RMUXManager): ToolRegistry {
     rmux_send_keys: formatSendKeys(rmux),
     rmux_capture: formatCapture(rmux),
     rmux_wait_for_text: formatWaitForText(rmux),
+    rmux_find_panes: formatFindPanes(rmux),
+    rmux_pane_info: formatPaneInfo(rmux),
+    rmux_observe: formatObserve(rmux),
+    rmux_observe_multi: formatObserveMulti(rmux),
   }
 }
