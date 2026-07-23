@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/package.json",
   "name": "opencode-rmux",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Opencode plugin that bridges AI coding agent sessions with RMUX terminal multiplexer — cross-platform subagent pane management and AI-driven RMUX control tools",
   "type": "module",
   "main": "dist/index.js",
