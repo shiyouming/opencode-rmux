@@ -2,6 +2,7 @@ import { request } from "node:http"
 import type { RMUXPluginConfig } from "./config.js"
 import { RMUXManager } from "./rmux.js"
 import { resolveServerUrlWithRetry } from "./lsof.js"
+import type { PermissionState, QuestionState } from "./state.js"
 
 
 function serverAvailable(url: string): Promise<boolean> {
@@ -25,14 +26,16 @@ export class SessionManager {
   private rmux: RMUXManager
   private config: RMUXPluginConfig
   private activeSplits = new Map<string, string>()
-  private pendingPermissions = new Set<string>()
-  private pendingQuestions = new Set<string>()
   private splitQueue = Promise.resolve<unknown>(undefined)
   private mainSession: string | null = null
+  private permission: PermissionState
+  private question: QuestionState
 
-  constructor(rmux: RMUXManager, config: RMUXPluginConfig) {
+  constructor(rmux: RMUXManager, config: RMUXPluginConfig, permission: PermissionState, question: QuestionState) {
     this.rmux = rmux
     this.config = config
+    this.permission = permission
+    this.question = question
   }
 
   async handleEvent(event: SessionEvent): Promise<void> {
@@ -66,7 +69,7 @@ export class SessionManager {
   }
 
   hasPendingInput(): boolean {
-    return this.pendingPermissions.size > 0 || this.pendingQuestions.size > 0
+    return this.permission.pendingCount > 0 || this.question.pendingCount > 0
   }
 
   private enqueueSplitOp<T>(fn: () => Promise<T>): Promise<T> {
@@ -95,7 +98,7 @@ export class SessionManager {
       return
     }
     this.activeSplits.delete(sessionId)
-    await this.rmux.cmd("kill-pane", "-t", target).catch(() => {})
+    await this.rmux.closeTarget(target)
   }
 
   private async findOrCreateSession(): Promise<string | null> {
@@ -170,8 +173,8 @@ export class SessionManager {
   }
 
   private async onSessionError(properties: Record<string, any>): Promise<void> {
-    this.pendingPermissions.clear()
-    this.pendingQuestions.clear()
+    this.permission.clear()
+    this.question.clear()
 
     const sessionId = properties.sessionID ?? properties.info?.id
     if (sessionId && this.activeSplits.has(sessionId)) {
@@ -206,8 +209,7 @@ export class SessionManager {
 
   private async onPermissionAsked(_properties: Record<string, any>): Promise<void> {
     const id = this.getPermissionRequestID(_properties)
-    if (id && !this.pendingPermissions.has(id)) {
-      this.pendingPermissions.add(id)
+    if (id && this.permission.track(id)) {
       if (this.config.notifications?.permission !== false) {
         this.notify(`permission needed: ${_properties.title ?? id.slice(0, 8)}`)
       }
@@ -217,14 +219,13 @@ export class SessionManager {
   private onPermissionReplied(_properties: Record<string, any>): void {
     const id = this.getPermissionRequestID(_properties)
     if (id) {
-      this.pendingPermissions.delete(id)
+      this.permission.resolve(id)
     }
   }
 
   private onQuestionAsked(_properties: Record<string, any>): void {
     const id = this.getPermissionRequestID(_properties)
-    if (id && !this.pendingQuestions.has(id)) {
-      this.pendingQuestions.add(id)
+    if (id && this.question.track(id)) {
       if (this.config.notifications?.question !== false) {
         this.notify(`question: ${_properties.title ?? id.slice(0, 8)}`)
       }
@@ -234,7 +235,7 @@ export class SessionManager {
   private onQuestionReplied(_properties: Record<string, any>): void {
     const id = this.getPermissionRequestID(_properties)
     if (id) {
-      this.pendingQuestions.delete(id)
+      this.question.resolve(id)
     }
   }
 

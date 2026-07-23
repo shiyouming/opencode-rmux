@@ -72,14 +72,16 @@ describe("Integration: SessionManager + real RMUXManager", () => {
   it("creates subagent pane on session.created with parentID", async () => {
     const { RMUXManager } = await import("../rmux.js")
     const { SessionManager } = await import("../sessions.js")
+    const { PermissionState, QuestionState } = await import("../state.js")
 
     const rmux = new RMUXManager()
     await rmux.connect()
 
     const sm = new SessionManager(rmux, {
       splits: true,
+      maxPanes: 4,
       notifications: { done: true, permission: true, question: true, error: true },
-    })
+    }, new PermissionState(), new QuestionState())
 
     await sm.handleEvent({
       type: "session.created",
@@ -97,14 +99,16 @@ describe("Integration: SessionManager + real RMUXManager", () => {
   it("skips creation when splits disabled", async () => {
     const { RMUXManager } = await import("../rmux.js")
     const { SessionManager } = await import("../sessions.js")
+    const { PermissionState, QuestionState } = await import("../state.js")
 
     const rmux = new RMUXManager()
     await rmux.connect()
 
     const sm = new SessionManager(rmux, {
       splits: false,
+      maxPanes: 4,
       notifications: { done: true, permission: true, question: true, error: true },
-    })
+    }, new PermissionState(), new QuestionState())
 
     await sm.handleEvent({
       type: "session.created",
@@ -120,14 +124,16 @@ describe("Integration: SessionManager + real RMUXManager", () => {
 
     const { RMUXManager } = await import("../rmux.js")
     const { SessionManager } = await import("../sessions.js")
+    const { PermissionState, QuestionState } = await import("../state.js")
 
     const rmux = new RMUXManager()
     await rmux.connect()
 
     const sm = new SessionManager(rmux, {
       splits: true,
+      maxPanes: 4,
       notifications: { done: true, permission: true, question: true, error: true },
-    })
+    }, new PermissionState(), new QuestionState())
 
     await sm.handleEvent({
       type: "session.created",
@@ -137,17 +143,19 @@ describe("Integration: SessionManager + real RMUXManager", () => {
     expect(mocks.mockClient.listSessions).not.toHaveBeenCalled()
   })
 
-
-
   it("tracks permissions across multiple events", async () => {
     const { RMUXManager } = await import("../rmux.js")
     const { SessionManager } = await import("../sessions.js")
+    const { PermissionState, QuestionState } = await import("../state.js")
 
     const rmux = new RMUXManager()
+    const perms = new PermissionState()
+    const questions = new QuestionState()
     const sm = new SessionManager(rmux, {
       splits: false,
+      maxPanes: 4,
       notifications: { done: true, permission: true, question: true, error: true },
-    })
+    }, perms, questions)
 
     await sm.handleEvent({ type: "permission.asked", properties: { id: "p1" } })
     await sm.handleEvent({ type: "permission.asked", properties: { id: "p2" } })
@@ -163,14 +171,16 @@ describe("Integration: SessionManager + real RMUXManager", () => {
   it("closes pane on session.error", async () => {
     const { RMUXManager } = await import("../rmux.js")
     const { SessionManager } = await import("../sessions.js")
+    const { PermissionState, QuestionState } = await import("../state.js")
 
     const rmux = new RMUXManager()
     await rmux.connect()
 
     const sm = new SessionManager(rmux, {
       splits: true,
+      maxPanes: 4,
       notifications: { done: true, permission: true, question: true, error: true },
-    })
+    }, new PermissionState(), new QuestionState())
 
     await sm.handleEvent({
       type: "session.created",
@@ -188,14 +198,16 @@ describe("Integration: SessionManager + real RMUXManager", () => {
   it("serializes multiple session.created events through queue", async () => {
     const { RMUXManager } = await import("../rmux.js")
     const { SessionManager } = await import("../sessions.js")
+    const { PermissionState, QuestionState } = await import("../state.js")
 
     const rmux = new RMUXManager()
     await rmux.connect()
 
     const sm = new SessionManager(rmux, {
       splits: true,
+      maxPanes: 4,
       notifications: { done: true, permission: true, question: true, error: true },
-    })
+    }, new PermissionState(), new QuestionState())
 
     await Promise.all([
       sm.handleEvent({

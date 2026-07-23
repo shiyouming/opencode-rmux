@@ -1,10 +1,8 @@
-import { RMUX } from "@rmux/sdk"
-import type { Pane, Session } from "@rmux/sdk"
+import { Pane, RMUX } from "@rmux/sdk"
+import type { Session } from "@rmux/sdk"
+import type { FindPanesQuery, PaneMeta, SessionInfo, SessionMeta } from "./types.js"
 
-export interface SessionInfo {
-  name: string
-  created: boolean
-}
+export type { SessionInfo }
 
 export class RMUXManager {
   private client: RMUX | null = null
@@ -130,9 +128,12 @@ export class RMUXManager {
   async closeSession(name: string): Promise<void> {
     if (!this.client) return
     try {
-      await this.client.cmd("kill-session", "-t", name)
+      const session = this.client.session(name)
+      await session.kill()
+      return
     } catch {
     }
+    try { await this.client.cmd("kill-session", "-t", name) } catch {}
   }
 
   async balanceRightPanes(sessionName: string): Promise<void> {
@@ -150,9 +151,14 @@ export class RMUXManager {
       }
       if (rightPanes.length === 0) return
 
-      const eachHeight = Math.floor(height * 0.98 / rightPanes.length)
+      const eachHeight = Math.max(1, Math.floor(height * 0.98 / rightPanes.length))
       for (const pid of rightPanes) {
-        await this.client.cmd("resize-pane", "-t", pid, "-y", String(eachHeight))
+        try {
+          const pane = new Pane(this.client, pid)
+          await pane.resize({ height: eachHeight })
+        } catch {
+          await this.client.cmd("resize-pane", "-t", pid, "-y", String(eachHeight)).catch(() => {})
+        }
       }
     } catch {
     }
@@ -164,6 +170,97 @@ export class RMUXManager {
       return await this.client.cmd(...(args as [string, ...string[]]))
     } catch {
       throw new Error(`RMUX command failed: ${args.join(" ")}`)
+    }
+  }
+
+  async listPaneMetas(): Promise<PaneMeta[]> {
+    if (!this.client) throw new Error("RMUX not connected")
+    const raw = await this.client.cmd(
+      "list-panes", "-a", "-F",
+      "#{session_name}|#{window_index}|#{pane_index}|#{pane_id}|" +
+      "#{pane_active}|#{pane_width}|#{pane_height}|#{pane_dead}|" +
+      "#{pane_dead_status}|#{pane_pid}|#{pane_title}|#{pane_current_command}"
+    )
+    return raw.stdout.trim().split("\n")
+      .filter(Boolean)
+      .map(line => this.parsePaneMetaLine(line))
+  }
+
+  async findPanes(query: FindPanesQuery): Promise<PaneMeta[]> {
+    const all = await this.listPaneMetas()
+    return all.filter(pane =>
+      Object.entries(query).every(([key, val]) =>
+        val === undefined || val === null ||       (pane as unknown as Record<string, unknown>)[key] === val
+      )
+    )
+  }
+
+  async getPaneMeta(target: string): Promise<PaneMeta> {
+    if (!this.client) throw new Error("RMUX not connected")
+    const raw = await this.client.cmd(
+      "display-message", "-p", "-t", target, "-F",
+      "#{session_name}|#{window_index}|#{pane_index}|#{pane_id}|" +
+      "#{pane_active}|#{pane_width}|#{pane_height}|#{pane_dead}|" +
+      "#{pane_dead_status}|#{pane_pid}|#{pane_title}|#{pane_current_command}"
+    )
+    return this.parsePaneMetaLine(raw.stdout.trim())
+  }
+
+  async getSessionMetas(): Promise<SessionMeta[]> {
+    if (!this.client) throw new Error("RMUX not connected")
+    const raw = await this.client.cmd(
+      "list-sessions", "-F",
+      "#{session_name}|#{session_windows}|#{session_attached}|" +
+      "#{session_width}|#{session_height}"
+    )
+    return raw.stdout.trim().split("\n")
+      .filter(Boolean)
+      .map(line => {
+        const [name, windows, attached, width, height] = line.split("|")
+        return {
+          name, windows: Number(windows), attached: Number(attached),
+          width: Number(width), height: Number(height),
+        }
+      })
+  }
+
+  async getCurrentCommand(target: string): Promise<string | null> {
+    if (!this.client) return null
+    try {
+      const raw = await this.client.cmd(
+        "display-message", "-p", "-t", target, "-F", "#{pane_current_command}"
+      )
+      return raw.stdout.trim() || null
+    } catch {
+      return null
+    }
+  }
+
+  paneFromTarget(target: string): Pane | null {
+    if (!this.client) return null
+    return new Pane(this.client, target)
+  }
+
+  async closeTarget(target: string): Promise<void> {
+    if (!this.client) return
+    try { await this.client.cmd("kill-pane", "-t", target) } catch {}
+  }
+
+  private parsePaneMetaLine(line: string): PaneMeta {
+    const parts = line.split("|")
+    return {
+      sessionName: parts[0],
+      windowIndex: Number(parts[1]),
+      paneIndex: Number(parts[2]),
+      paneId: parts[3],
+      active: parts[4] === "1" || parts[4] === "true",
+      width: Number(parts[5]),
+      height: Number(parts[6]),
+      dead: parts[7] === "1" || parts[7] === "true",
+      deadStatus: parts[8] !== "" ? Number(parts[8]) : null,
+      pid: parts[9] !== "" ? Number(parts[9]) : null,
+      title: parts[10] ?? "",
+      currentCommand: parts[11] ?? "",
     }
   }
 }

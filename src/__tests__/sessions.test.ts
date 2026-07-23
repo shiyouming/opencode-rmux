@@ -15,6 +15,8 @@ const rmuxMocks = vi.hoisted(() => {
       listSessions: vi.fn().mockResolvedValue([{ name: "test-rmux" }]),
       getClient: () => null,
       captureTarget: vi.fn(),
+      closeTarget: vi.fn().mockResolvedValue(undefined),
+      balanceRightPanes: vi.fn().mockResolvedValue(undefined),
       cmd: mockCmd,
     }
   }
@@ -44,10 +46,17 @@ function testConfig(overrides: Record<string, any> = {}): Record<string, any> {
     splits: true,
     splitSize: "30%",
     keepPaneOnIdle: false,
+    maxPanes: 4,
     debug: false,
     notifications: { done: true, permission: true, question: true, error: true },
     ...overrides,
   }
+}
+
+async function createSM(mgr: any, config: any) {
+  const { SessionManager } = await import("../sessions.js")
+  const { PermissionState, QuestionState } = await import("../state.js")
+  return new SessionManager(mgr, config, new PermissionState(), new QuestionState())
 }
 
 describe("SessionManager", () => {
@@ -56,9 +65,8 @@ describe("SessionManager", () => {
   })
 
   it("handles session.created without parentID (not a subagent)", async () => {
-    const { SessionManager } = await import("../sessions.js")
     const mgr = new rmuxMocks.MockRMUXManager()
-    const sm = new SessionManager(mgr, testConfig())
+    const sm = await createSM(mgr, testConfig())
 
     await sm.handleEvent({
       type: "session.created",
@@ -76,9 +84,8 @@ describe("SessionManager", () => {
     rmuxMocks.mockCreateAgentPane.mockResolvedValue(mockPane)
     rmuxMocks.mockGetSession.mockResolvedValue({ name: "test-rmux" })
 
-    const { SessionManager } = await import("../sessions.js")
     const mgr = new rmuxMocks.MockRMUXManager()
-    const sm = new SessionManager(mgr, testConfig())
+    const sm = await createSM(mgr, testConfig())
 
     await sm.handleEvent({
       type: "session.created",
@@ -96,9 +103,8 @@ describe("SessionManager", () => {
     const { resolveServerUrl } = await import("../lsof.js")
     vi.mocked(resolveServerUrl).mockReturnValue("http://localhost:4096")
 
-    const { SessionManager } = await import("../sessions.js")
     const mgr = new rmuxMocks.MockRMUXManager()
-    const sm = new SessionManager(mgr, testConfig({ splits: false }))
+    const sm = await createSM(mgr, testConfig({ splits: false }))
 
     await sm.handleEvent({
       type: "session.created",
@@ -109,9 +115,8 @@ describe("SessionManager", () => {
   })
 
   it("tracks permissions", async () => {
-    const { SessionManager } = await import("../sessions.js")
     const mgr = new rmuxMocks.MockRMUXManager()
-    const sm = new SessionManager(mgr, testConfig({ splits: false }))
+    const sm = await createSM(mgr, testConfig({ splits: false }))
 
     expect(sm.hasPendingInput()).toBe(false)
 
@@ -129,9 +134,8 @@ describe("SessionManager", () => {
   })
 
   it("handles session.deleted", async () => {
-    const { SessionManager } = await import("../sessions.js")
     const mgr = new rmuxMocks.MockRMUXManager()
-    const sm = new SessionManager(mgr, testConfig())
+    const sm = await createSM(mgr, testConfig())
 
     await sm.handleEvent({
       type: "session.deleted",
@@ -142,9 +146,8 @@ describe("SessionManager", () => {
   })
 
   it("handles session.status idle (not tracked)", async () => {
-    const { SessionManager } = await import("../sessions.js")
     const mgr = new rmuxMocks.MockRMUXManager()
-    const sm = new SessionManager(mgr, testConfig())
+    const sm = await createSM(mgr, testConfig())
 
     await sm.handleEvent({
       type: "session.status",
@@ -155,9 +158,8 @@ describe("SessionManager", () => {
   })
 
   it("handles session.error", async () => {
-    const { SessionManager } = await import("../sessions.js")
     const mgr = new rmuxMocks.MockRMUXManager()
-    const sm = new SessionManager(mgr, testConfig())
+    const sm = await createSM(mgr, testConfig())
 
     await sm.handleEvent({
       type: "session.error",
@@ -168,9 +170,8 @@ describe("SessionManager", () => {
   })
 
   it("tracks multiple permissions", async () => {
-    const { SessionManager } = await import("../sessions.js")
     const mgr = new rmuxMocks.MockRMUXManager()
-    const sm = new SessionManager(mgr, testConfig({ splits: false }))
+    const sm = await createSM(mgr, testConfig({ splits: false }))
 
     await sm.handleEvent({ type: "permission.asked", properties: { id: "perm-1" } })
     await sm.handleEvent({ type: "permission.asked", properties: { id: "perm-2" } })
@@ -184,9 +185,8 @@ describe("SessionManager", () => {
   })
 
   it("does not track duplicate permissions", async () => {
-    const { SessionManager } = await import("../sessions.js")
     const mgr = new rmuxMocks.MockRMUXManager()
-    const sm = new SessionManager(mgr, testConfig({ splits: false }))
+    const sm = await createSM(mgr, testConfig({ splits: false }))
 
     await sm.handleEvent({ type: "permission.asked", properties: { id: "perm-1" } })
     await sm.handleEvent({ type: "permission.asked", properties: { id: "perm-1" } })
