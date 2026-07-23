@@ -206,7 +206,13 @@ describe("Integration: Tools + real RMUXManager", () => {
     }
   })
 
-  it("rmux_list_sessions returns formatted session list", async () => {
+  it("rmux_list_sessions returns formatted session list with metadata", async () => {
+    mocks.mockClient.cmd.mockResolvedValueOnce({
+      returnCode: 0,
+      stdout: "s1|2|1|120|40\ns2|1|0|80|24\n",
+      stderr: "",
+    })
+
     const { RMUXManager } = await import("../rmux.js")
     const { createTools } = await import("../tools.js")
 
@@ -217,8 +223,10 @@ describe("Integration: Tools + real RMUXManager", () => {
     const result = await tools.rmux_list_sessions.execute({}, {})
 
     expect(result).toContain("s1")
+    expect(result).toContain("2 windows")
+    expect(result).toContain("120x40")
     expect(result).toContain("s2")
-    expect(mocks.mockClient.listSessions).toHaveBeenCalledTimes(1)
+    expect(result).toContain("80x24")
   })
 
   it("rmux_create_session creates session and returns name", async () => {
@@ -446,6 +454,12 @@ describe("Integration: Plugin entry point", () => {
   })
 
   it("tools execute through plugin interface", async () => {
+    mocks.mockClient.cmd.mockResolvedValueOnce({
+      returnCode: 0,
+      stdout: "s1|1|0|80|24\n",
+      stderr: "",
+    })
+
     const plugin = await import("../index.js")
     const instance = await plugin.default()
 

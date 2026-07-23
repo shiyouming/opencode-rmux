@@ -8,18 +8,20 @@ interface ToolArgs {
 
 function formatSessionList(rmux: RMUXManager) {
   return tool({
-    description: "List all running RMUX sessions with their window and pane information",
+    description: "List all running RMUX sessions with metadata (windows, attached clients, dimensions)",
     args: {},
     async execute(_args: ToolArgs, _context: ToolContext) {
       try {
         if (!rmux.isConnected()) {
           return "RMUX daemon is not connected. Ensure the rmux binary is installed and running."
         }
-        const sessions = await rmux.listSessions()
-        if (sessions.length === 0) {
+        const metas = await rmux.getSessionMetas()
+        if (metas.length === 0) {
           return "No RMUX sessions found."
         }
-        return sessions.map((s: any) => `- ${s.name}`).join("\n")
+        return metas.map(m =>
+          `- ${m.name} (${m.windows} windows, ${m.attached} attached, ${m.width}x${m.height})`
+        ).join("\n")
       } catch (error) {
         return `Error listing RMUX sessions: ${error instanceof Error ? error.message : String(error)}`
       }
@@ -40,11 +42,19 @@ function formatCreateSession(rmux: RMUXManager) {
           return "RMUX daemon is not connected. Ensure the rmux binary is installed and running."
         }
         const session = await rmux.ensureSession(args.name, true)
+        let metaInfo = ""
+        try {
+          const metas = await rmux.getSessionMetas()
+          const meta = metas.find(m => m.name === args.name)
+          if (meta) metaInfo = ` (${meta.windows} windows, ${meta.attached} attached, ${meta.width}x${meta.height})`
+        } catch {}
+        let msg = `Created RMUX session "${args.name}"${metaInfo}`
         if (args.command) {
           const pane = session.window(0).pane(0)
           await rmux.sendTextToPane(pane, args.command + "\n")
+          msg += ` and running command: ${args.command}`
         }
-        return `Created RMUX session "${args.name}"` + (args.command ? ` and running command: ${args.command}` : "")
+        return msg
       } catch (error) {
         return `Error creating RMUX session: ${error instanceof Error ? error.message : String(error)}`
       }

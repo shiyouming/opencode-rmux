@@ -28,6 +28,7 @@ const rmuxMocks = vi.hoisted(() => {
   const mockSendKeys = vi.fn()
   const mockCaptureTarget = vi.fn()
   const mockPaneFromTarget = vi.fn()
+  const mockGetSessionMetas = vi.fn()
   let isConnected = true
 
   function MockRMUXManager() {
@@ -39,6 +40,7 @@ const rmuxMocks = vi.hoisted(() => {
       sendKeys: mockSendKeys,
       captureTarget: mockCaptureTarget,
       paneFromTarget: mockPaneFromTarget,
+      getSessionMetas: mockGetSessionMetas,
       cmd: vi.fn(),
       getClient: () => null,
     }
@@ -50,7 +52,7 @@ const rmuxMocks = vi.hoisted(() => {
     set isConnected(v) { isConnected = v },
     mockListSessions, mockEnsureSession,
     mockSendTextToPane, mockSendKeys, mockCaptureTarget,
-    mockPaneFromTarget,
+    mockPaneFromTarget, mockGetSessionMetas,
   }
 })
 
@@ -78,10 +80,10 @@ describe("tools", () => {
     rmuxMocks.isConnected = true
   })
 
-  it("rmux_list_sessions returns session list", async () => {
-    rmuxMocks.mockListSessions.mockResolvedValue([
-      { name: "session-1", created: false },
-      { name: "session-2", created: false },
+  it("rmux_list_sessions returns session list with metadata", async () => {
+    rmuxMocks.mockGetSessionMetas.mockResolvedValue([
+      { name: "session-1", windows: 2, attached: 1, width: 120, height: 40 },
+      { name: "session-2", windows: 1, attached: 0, width: 80, height: 24 },
     ])
 
     const { createTools } = await import("../tools.js")
@@ -89,11 +91,15 @@ describe("tools", () => {
     const tools = createTools(mgr)
     const result = await tools.rmux_list_sessions.execute({}, createMockContext())
 
-    expect(result).toBe("- session-1\n- session-2")
+    expect(result).toContain("session-1")
+    expect(result).toContain("2 windows")
+    expect(result).toContain("120x40")
+    expect(result).toContain("session-2")
+    expect(result).toContain("80x24")
   })
 
   it("rmux_list_sessions returns empty message when no sessions", async () => {
-    rmuxMocks.mockListSessions.mockResolvedValue([])
+    rmuxMocks.mockGetSessionMetas.mockResolvedValue([])
 
     const { createTools } = await import("../tools.js")
     const mgr = new rmuxMocks.MockRMUXManager()
@@ -119,6 +125,9 @@ describe("tools", () => {
     rmuxMocks.mockEnsureSession.mockResolvedValue({
       window: vi.fn().mockReturnValue(mockWindow),
     })
+    rmuxMocks.mockGetSessionMetas.mockResolvedValue([
+      { name: "ci-session", windows: 1, attached: 0, width: 80, height: 24 },
+    ])
 
     const { createTools } = await import("../tools.js")
     const mgr = new rmuxMocks.MockRMUXManager()
@@ -129,6 +138,8 @@ describe("tools", () => {
     )
 
     expect(result).toContain('Created RMUX session "ci-session"')
+    expect(result).toContain("1 windows")
+    expect(result).toContain("80x24")
     expect(rmuxMocks.mockEnsureSession).toHaveBeenCalledWith("ci-session", true)
   })
 
@@ -138,6 +149,9 @@ describe("tools", () => {
     rmuxMocks.mockEnsureSession.mockResolvedValue({
       window: vi.fn().mockReturnValue(mockWindow2),
     })
+    rmuxMocks.mockGetSessionMetas.mockResolvedValue([
+      { name: "ci-session", windows: 1, attached: 1, width: 120, height: 40 },
+    ])
 
     const { createTools } = await import("../tools.js")
     const mgr = new rmuxMocks.MockRMUXManager()
@@ -148,6 +162,7 @@ describe("tools", () => {
     )
 
     expect(result).toContain("npm test")
+    expect(result).toContain("1 windows")
     expect(rmuxMocks.mockSendTextToPane).toHaveBeenCalled()
   })
 
