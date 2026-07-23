@@ -272,9 +272,11 @@ Remove-Item -Recurse -Force "$env:LOCALAPPDATA\opencode\cache\packages\opencode-
 ```bash
 npm install       # 安装依赖
 npm run typecheck # tsc --noEmit
-npm test          # 运行测试（97 个用例）
+npm test          # 运行测试（98 个用例）
 npm run build     # 构建 dist/
 ```
+
+欢迎提交 Issue 和 Pull Request。项目采用 MIT 协议，详见 [LICENSE](LICENSE)。
 
 ## 协议
 

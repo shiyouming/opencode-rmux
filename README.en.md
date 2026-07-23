@@ -274,9 +274,11 @@ Remove-Item -Recurse -Force "$env:LOCALAPPDATA\opencode\cache\packages\opencode-
 ```bash
 npm install       # install dependencies
 npm run typecheck # tsc --noEmit
-npm test          # run tests (97 test cases)
+npm test          # run tests (98 test cases)
 npm run build     # build dist/
 ```
+
+Issues and Pull Requests welcome. Licensed under MIT — see [LICENSE](LICENSE).
 
 ## License
 
