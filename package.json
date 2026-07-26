@@ -22,7 +22,9 @@
   "files": [
     "dist",
     "README.en.md",
-    "TUTORIAL.en.md"
+    "README.md",
+    "TUTORIAL.en.md",
+    "TUTORIAL.md"
   ],
   "scripts": {
     "build": "tsc",
@@ -46,6 +48,7 @@
     "ai-coding"
   ],
   "author": "ShiYouming",
+  "funding": "https://github.com/sponsors/ShiYouming",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -59,7 +62,7 @@
     "@opencode-ai/plugin": ">=1.0.0"
   },
   "dependencies": {
-    "@rmux/sdk": "^0.6.5"
+    "@rmux/sdk": "~0.6.5"
   },
   "devDependencies": {
     "@opencode-ai/plugin": "^1.2.15",

@@ -12,7 +12,10 @@ const rmuxMocks = vi.hoisted(() => {
       getSession: mockGetSession,
       createAgentPane: mockCreateAgentPane,
       sendTextToPane: mockSendTextToPane,
+      splitPane: vi.fn().mockResolvedValue({ target: "test:0.1" }),
       listSessions: vi.fn().mockResolvedValue([{ name: "test-rmux" }]),
+      getSessionMetas: vi.fn().mockResolvedValue([{ name: "test-rmux", windows: 1, attached: 1, width: 179, height: 51 }]),
+      getCurrentSessionName: vi.fn().mockResolvedValue("test-rmux"),
       getClient: () => null,
       captureTarget: vi.fn(),
       closeTarget: vi.fn(async (target: string) => {
@@ -29,23 +32,6 @@ const rmuxMocks = vi.hoisted(() => {
 vi.mock("../rmux.js", () => ({
   RMUXManager: rmuxMocks.MockRMUXManager,
 }))
-
-vi.mock("../lsof.js", () => ({
-  resolveServerUrl: vi.fn(),
-  resolveServerUrlWithRetry: vi.fn(),
-}))
-
-vi.mock("node:http", () => ({
-  request: vi.fn((_url: string, _opts: any, cb: (res: any) => void) => {
-    const mockReq = { on: vi.fn(), end: vi.fn(), destroy: vi.fn() }
-    setTimeout(() => cb({ statusCode: 200 }), 0)
-    return mockReq
-  }),
-}))
-
-beforeEach(() => {
-  vi.clearAllMocks()
-})
 
 vi.mock("../lsof.js", () => ({
   resolveServerUrl: vi.fn(),
@@ -101,7 +87,12 @@ describe("SessionManager", () => {
 
     const mockPane = { sendText: vi.fn(), close: vi.fn(), select: vi.fn(), target: "test:0" }
     rmuxMocks.mockCreateAgentPane.mockResolvedValue(mockPane)
-    rmuxMocks.mockGetSession.mockResolvedValue({ name: "test-rmux" })
+    rmuxMocks.mockGetSession.mockResolvedValue({
+      name: "test-rmux",
+      window: vi.fn().mockReturnValue({
+        panes: vi.fn().mockResolvedValue([{ target: "test-rmux:0.0" }]),
+      }),
+    })
 
     const mgr = new rmuxMocks.MockRMUXManager()
     const sm = await createSM(mgr, testConfig())
@@ -112,7 +103,7 @@ describe("SessionManager", () => {
     })
 
     expect(rmuxMocks.mockCreateAgentPane).toHaveBeenCalledWith(
-      { name: "test-rmux" },
+      expect.objectContaining({ name: "test-rmux" }),
       "opencode attach http://localhost:4096 --session sub-456",
       "30%",
     )

@@ -107,9 +107,9 @@ export class SessionManager {
     if (this.mainSession) return this.mainSession
 
     try {
-      const sessions = await this.rmux.listSessions()
-      if (sessions.length > 0) {
-        this.mainSession = sessions[0].name
+      const name = await this.rmux.getCurrentSessionName()
+      if (name) {
+        this.mainSession = name
         return this.mainSession
       }
     } catch {
@@ -153,7 +153,6 @@ export class SessionManager {
         const pane = await this.rmux.createAgentPane(session, attachCmd, this.config.splitSize)
         this.activeSplits.set(info.id, pane.target)
         await this.rmux.balanceRightPanes(sessionName)
-        session.window(0).pane(0).select().catch(() => {})
         if (this.config.notifications?.done !== false) {
           this.notify(`subagent spawned: ${info.id.slice(0, 8)}`)
         }

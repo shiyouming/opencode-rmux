@@ -12,6 +12,8 @@ export interface PaneMeta {
   active: boolean
   width: number
   height: number
+  paneLeft: number
+  paneTop: number
   dead: boolean
   deadStatus: number | null
   pid: number | null

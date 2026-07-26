@@ -116,12 +116,12 @@ describe("Integration: SessionManager + real RMUXManager", () => {
       properties: { info: { id: "sub-001", parentID: "parent-001" } },
     })
 
-    expect(mocks.mockClient.listSessions).toHaveBeenCalled()
-    expect(mocks.mockSession.window).toHaveBeenCalledWith(0)
-    expect(mocks.mockPane.split).toHaveBeenCalledWith({
-      direction: "h", size: "30%",
-      shellCommand: "opencode attach http://localhost:12345 --session sub-001",
-    })
+    expect(mocks.mockClient.cmd).toHaveBeenCalledWith(
+      "split-window", "-d", "-P", "-F", "#{pane_id}",
+      "-h", "-l", "30%", "-t",
+      expect.any(String),
+      "opencode attach http://localhost:12345 --session sub-001"
+    )
   })
 
   it("skips creation when splits disabled", async () => {
@@ -277,7 +277,7 @@ describe("Integration: Tools + real RMUXManager", () => {
   it("rmux_find_panes returns formatted results", async () => {
     mocks.mockClient.cmd.mockResolvedValueOnce({
       returnCode: 0,
-      stdout: "s1|0|0|%0|1|80|24|0||100|bash|bash\n",
+      stdout: "s1|0|0|%0|1|80|24|0|0|0||100|bash|bash\n",
       stderr: "",
     })
 
@@ -296,7 +296,7 @@ describe("Integration: Tools + real RMUXManager", () => {
 
   it("rmux_find_panes returns no panes when none match", async () => {
     mocks.mockClient.cmd.mockResolvedValueOnce({
-      returnCode: 0, stdout: "s1|0|0|%0|1|80|24|0||100|bash|bash\n", stderr: "",
+      returnCode: 0, stdout: "s1|0|0|%0|1|80|24|0|0|0||100|bash|bash\n", stderr: "",
     })
 
     const { RMUXManager } = await import("../rmux.js")
@@ -314,7 +314,7 @@ describe("Integration: Tools + real RMUXManager", () => {
   it("rmux_pane_info returns formatted metadata", async () => {
     mocks.mockClient.cmd.mockResolvedValueOnce({
       returnCode: 0,
-      stdout: "demo|0|1|%2|0|40|25|0||9999|my pane|node",
+      stdout: "demo|0|1|%2|0|40|25|0|0|0||9999|my pane|node",
       stderr: "",
     })
 

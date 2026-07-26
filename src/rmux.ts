@@ -61,17 +61,17 @@ export class RMUXManager {
       const mainWindow = session.window(0)
       const panes = await mainWindow.panes()
       const size = splitSize ?? "30%"
-      if (panes.length <= 1) {
-        return await mainWindow.pane(0).split({
-          direction: "h", size, ...(shellCommand ? { shellCommand } : {}),
-        })
-      }
-      const rightPanes = await mainWindow.panes()
-      const count = rightPanes.length
-      const eachPct = Math.floor(100 / (count + 1))
-      return await rightPanes[rightPanes.length - 1].split({
-        direction: "v", size: `${eachPct}%`, ...(shellCommand ? { shellCommand } : {}),
-      })
+      const isFirstSplit = panes.length <= 1
+      const target = isFirstSplit ? panes[0].target : panes[panes.length - 1].target
+      const direction = isFirstSplit ? "-h" : "-v"
+      const splitSizeArg = isFirstSplit ? size : `${Math.floor(100 / (panes.length + 1))}%`
+      const args: string[] = [
+        "split-window", "-d", "-P", "-F", "#{pane_id}",
+        direction, "-l", splitSizeArg, "-t", target,
+      ]
+      if (shellCommand) args.push(shellCommand)
+      const run = await this.client.cmd(...(args as [string, ...string[]]))
+      return new Pane(this.client, run.stdout.trim())
     } catch {
       throw new Error("Failed to create agent pane")
     }
@@ -80,13 +80,57 @@ export class RMUXManager {
   async sendKeys(target: string, keys: string): Promise<void> {
     if (!this.client) throw new Error("RMUX not connected")
     try {
-      if (keys === "Enter") {
-        await this.client.sendKeys(target, "Enter")
-      } else if (keys.endsWith(" Enter")) {
-        const text = keys.slice(0, -6)
-        await this.client.sendText(target, text + "\n")
-      } else {
-        await this.client.sendText(target, keys)
+      const client = this.client
+
+      const toKeyName = (s: string): string | null => {
+        if (/^[Cc]-[a-zA-Z]$/.test(s)) return `C-${s[2].toLowerCase()}`
+        const m = s.match(/^Ctrl\+([a-zA-Z])$/i)
+        if (m) return `C-${m[1].toLowerCase()}`
+        const name = s.charAt(0).toUpperCase() + s.slice(1).toLowerCase()
+        if (/^(Enter|Tab|Escape|Space|Backspace|Up|Down|Left|Right|Home|End|PageUp|PageDown|Insert|Delete|F(?:[1-9]|1[0-2]))$/.test(name)) return name
+        return null
+      }
+
+      const tokens = keys.split(/\s+/).filter(Boolean)
+      if (tokens.every(t => !toKeyName(t))) {
+        if (keys.endsWith(" Enter")) {
+          await client.sendText(target, keys.slice(0, -6) + "\n")
+        } else {
+          await client.sendText(target, keys)
+        }
+        return
+      }
+
+      const segments: Array<{ kind: "key" | "text"; value: string }> = []
+      for (const t of tokens) {
+        const kn = toKeyName(t)
+        if (kn) {
+          segments.push({ kind: "key", value: kn })
+        } else {
+          const inlineMatch = t.match(/^(.*?)((?:Ctrl\+[a-zA-Z]|[Cc]-[a-zA-Z]))(.*)$/)
+          if (inlineMatch) {
+            const [, before, ctrl, after] = inlineMatch
+            const ctrlKey = toKeyName(ctrl)
+            if (before) segments.push({ kind: "text", value: before })
+            if (ctrlKey) segments.push({ kind: "key", value: ctrlKey })
+            if (after) segments.push({ kind: "text", value: after })
+          } else {
+            const last = segments[segments.length - 1]
+            if (last && last.kind === "text") {
+              last.value += " " + t
+            } else {
+              segments.push({ kind: "text", value: t })
+            }
+          }
+        }
+      }
+
+      for (const seg of segments) {
+        if (seg.kind === "key") {
+          await client.sendKeys(target, seg.value)
+        } else if (seg.value) {
+          await client.sendText(target, seg.value)
+        }
       }
     } catch {
       throw new Error(`Failed to send keys to: ${target}`)
@@ -178,8 +222,8 @@ export class RMUXManager {
     const raw = await this.client.cmd(
       "list-panes", "-a", "-F",
       "#{session_name}|#{window_index}|#{pane_index}|#{pane_id}|" +
-      "#{pane_active}|#{pane_width}|#{pane_height}|#{pane_dead}|" +
-      "#{pane_dead_status}|#{pane_pid}|#{pane_title}|#{pane_current_command}"
+      "#{pane_active}|#{pane_width}|#{pane_height}|#{pane_left}|#{pane_top}|" +
+      "#{pane_dead}|#{pane_dead_status}|#{pane_pid}|#{pane_title}|#{pane_current_command}"
     )
     return raw.stdout.trim().split("\n")
       .filter(Boolean)
@@ -200,8 +244,8 @@ export class RMUXManager {
     const raw = await this.client.cmd(
       "display-message", "-p", "-t", target, "-F",
       "#{session_name}|#{window_index}|#{pane_index}|#{pane_id}|" +
-      "#{pane_active}|#{pane_width}|#{pane_height}|#{pane_dead}|" +
-      "#{pane_dead_status}|#{pane_pid}|#{pane_title}|#{pane_current_command}"
+      "#{pane_active}|#{pane_width}|#{pane_height}|#{pane_left}|#{pane_top}|" +
+      "#{pane_dead}|#{pane_dead_status}|#{pane_pid}|#{pane_title}|#{pane_current_command}"
     )
     return this.parsePaneMetaLine(raw.stdout.trim())
   }
@@ -224,6 +268,28 @@ export class RMUXManager {
       })
   }
 
+  async getCurrentSessionName(): Promise<string | null> {
+    if (!this.client) return null
+    try {
+      const raw = await this.client.cmd("display-message", "-p", "#{session_name}")
+      if (raw.stdout.trim()) return raw.stdout.trim()
+    } catch {
+    }
+    try {
+      const raw = await this.client.cmd(
+        "list-sessions", "-F",
+        "#{session_name}|#{session_attached}"
+      )
+      const lines = raw.stdout.trim().split("\n").filter(Boolean)
+      const attached = lines.find(l => l.split("|")[1] !== "0")
+      if (attached) return attached.split("|")[0]
+      if (lines.length > 0) return lines[0].split("|")[0]
+      return null
+    } catch {
+      return null
+    }
+  }
+
   async getCurrentCommand(target: string): Promise<string | null> {
     if (!this.client) return null
     try {
@@ -241,6 +307,81 @@ export class RMUXManager {
     return new Pane(this.client, target)
   }
 
+  async splitPane(sessionName: string, splitSize?: string, direction?: "horizontal" | "vertical", target?: string): Promise<Pane> {
+    if (!this.client) throw new Error("RMUX not connected")
+    const session = await this.getSession(sessionName)
+    if (!session) throw new Error(`Session not found: ${sessionName}`)
+
+    if (target || direction) {
+      const dirFlag = direction === "vertical" ? "-v" : "-h"
+      const size = splitSize ?? "30%"
+      const targetPane = target ?? session.window(0).pane(0).target
+      const args: string[] = [
+        "split-window", "-d", "-P", "-F", "#{pane_id}",
+        dirFlag, "-l", size, "-t", targetPane,
+      ]
+      const run = await this.client.cmd(...(args as [string, ...string[]]))
+      return new Pane(this.client, run.stdout.trim())
+    }
+
+    return await this.createAgentPane(session, undefined, splitSize)
+  }
+
+  async selectLayout(sessionName: string, layout: string, windowIndex?: number): Promise<void> {
+    if (!this.client) throw new Error("RMUX not connected")
+    const idx = windowIndex ?? 0
+    await this.client.cmd("select-layout", "-t", `${sessionName}:${idx}`, layout)
+  }
+
+  async findTargetByCriteria(criteria: {
+    sessionName?: string
+    title?: string
+    command?: string
+    position?: string
+    active?: boolean
+  }): Promise<string | null> {
+    const all = await this.listPaneMetas()
+    let filtered = all
+
+    if (criteria.sessionName) {
+      filtered = filtered.filter(p => p.sessionName === criteria.sessionName)
+    }
+    if (criteria.title) {
+      const t = criteria.title.toLowerCase()
+      filtered = filtered.filter(p => p.title.toLowerCase().includes(t))
+    }
+    if (criteria.command) {
+      const c = criteria.command.toLowerCase()
+      filtered = filtered.filter(p => p.currentCommand.toLowerCase().includes(c))
+    }
+    if (criteria.active !== undefined) {
+      filtered = filtered.filter(p => p.active === criteria.active)
+    }
+    if (criteria.position) {
+      const pos = criteria.position.toLowerCase()
+      const perWindow = new Map<string, PaneMeta[]>()
+      for (const p of filtered) {
+        const key = `${p.sessionName}:${p.windowIndex}`
+        if (!perWindow.has(key)) perWindow.set(key, [])
+        perWindow.get(key)!.push(p)
+      }
+      filtered = filtered.filter(p => {
+        const group = perWindow.get(`${p.sessionName}:${p.windowIndex}`)!
+        const minLeft = Math.min(...group.map(x => x.paneLeft))
+        const maxLeft = Math.max(...group.map(x => x.paneLeft))
+        const maxTop = Math.max(...group.map(x => x.paneTop))
+        if (pos === "left" || pos === "top-left" || pos === "top") return p.paneLeft === minLeft
+        if (pos === "right") return p.paneLeft > minLeft
+        if (pos === "bottom") return p.paneTop === maxTop && group.length > 1
+        return true
+      })
+    }
+
+    if (filtered.length === 0) return null
+    const p = filtered[0]
+    return `${p.sessionName}:${p.windowIndex}.${p.paneIndex}`
+  }
+
   async closeTarget(target: string): Promise<void> {
     if (!this.client) return
     try { await this.client.cmd("kill-pane", "-t", target) } catch {}
@@ -256,11 +397,13 @@ export class RMUXManager {
       active: parts[4] === "1" || parts[4] === "true",
       width: Number(parts[5]),
       height: Number(parts[6]),
-      dead: parts[7] === "1" || parts[7] === "true",
-      deadStatus: parts[8] !== "" ? Number(parts[8]) : null,
-      pid: parts[9] !== "" ? Number(parts[9]) : null,
-      title: parts[10] ?? "",
-      currentCommand: parts[11] ?? "",
+      paneLeft: Number(parts[7]),
+      paneTop: Number(parts[8]),
+      dead: parts[9] === "1" || parts[9] === "true",
+      deadStatus: parts[10] !== "" ? Number(parts[10]) : null,
+      pid: parts[11] !== "" ? Number(parts[11]) : null,
+      title: parts[12] ?? "",
+      currentCommand: parts[13] ?? "",
     }
   }
 }

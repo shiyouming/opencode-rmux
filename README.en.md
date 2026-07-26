@@ -15,7 +15,7 @@
 
 <table>
 <tr><td><b>Subagent Panes</b></td><td>When Opencode spawns subagents, automatically creates RMUX panes showing real-time work. First agent splits right, subsequent stack vertically with auto-balanced heights</td></tr>
-<tr><td><b>AI RMUX Tools</b></td><td>9 tools for AI to control RMUX directly: list/find panes, inspect pane details, send keys, capture, wait for text, stream observe, and more</td></tr>
+<tr><td><b>AI RMUX Tools</b></td><td>12 tools for AI to control RMUX directly: list/find panes, inspect pane details, send keys, capture, wait for text, stream observe, split panes, change layout, and more</td></tr>
 <tr><td><b>Cross-Platform</b></td><td>Native Windows, macOS, Linux — no WSL required</td></tr>
 <tr><td><b>TypeScript SDK</b></td><td>Built on official <code>@rmux/sdk</code> — type-safe, no CLI parsing</td></tr>
 </table>
@@ -50,7 +50,7 @@
 | **Linux**                | ❌  | ✅ | ✅ Native |
 | **TypeScript SDK**       | ❌ CLI parsing | ❌ CLI parsing | ✅ Official TypeScript SDK |
 | **Subagent Panes**       | ✅ 3 pane limit | ✅ Unlimited | ✅ Configurable limit, auto-recycle |
-| **AI RMUX Tools**        | ❌  | ⚠️ Partial | ✅ **9 dedicated tools** |
+| **AI RMUX Tools**        | ❌  | ⚠️ Partial | ✅ **12 dedicated tools** |
 | **Pane Metadata**        | ❌  | ❌ | ✅ PID/command/size details |
 | **Pane Search**          | ❌  | ❌ | ✅ Filter by session/command/status |
 | **Stream Observe**       | ❌  | ❌ | ✅ Single/multi-pane real-time output |
@@ -210,6 +210,9 @@ File: `~/.config/opencode/opencode-rmux.json`. If missing, all options use defau
 | `rmux_wait_for_text` | Wait for text pattern to appear in a pane (with timeout) |
 | `rmux_observe` | Subscribe to pane output stream, return collected lines |
 | `rmux_observe_multi` | Subscribe to multiple pane streams simultaneously |
+| `rmux_split_pane` | Split a pane to create a new pane (right or downward) |
+| `rmux_select_layout` | Change the layout of panes in a window |
+| `rmux_find_target` | Find a pane by criteria and return its target string |
 
 ---
 
@@ -272,7 +275,7 @@ Remove-Item -Recurse -Force "$env:LOCALAPPDATA\opencode\cache\packages\opencode-
 ```bash
 npm install       # install dependencies
 npm run typecheck # tsc --noEmit
-npm test          # run tests (98 test cases)
+npm test          # run tests (106 test cases)
 npm run build     # build dist/
 ```
 

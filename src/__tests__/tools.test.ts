@@ -29,6 +29,10 @@ const rmuxMocks = vi.hoisted(() => {
   const mockCaptureTarget = vi.fn()
   const mockPaneFromTarget = vi.fn()
   const mockGetSessionMetas = vi.fn()
+  const mockGetCurrentSessionName = vi.fn()
+  const mockSplitPane = vi.fn()
+  const mockSelectLayout = vi.fn()
+  const mockFindTargetByCriteria = vi.fn()
   let isConnected = true
 
   function MockRMUXManager() {
@@ -41,7 +45,11 @@ const rmuxMocks = vi.hoisted(() => {
       captureTarget: mockCaptureTarget,
       paneFromTarget: mockPaneFromTarget,
       getSessionMetas: mockGetSessionMetas,
-      cmd: vi.fn(),
+      getCurrentSessionName: mockGetCurrentSessionName,
+      splitPane: mockSplitPane,
+      selectLayout: mockSelectLayout,
+      findTargetByCriteria: mockFindTargetByCriteria,
+      cmd: vi.fn().mockResolvedValue({ returnCode: 0, stdout: "", stderr: "" }),
       getClient: () => null,
     }
   }
@@ -52,7 +60,9 @@ const rmuxMocks = vi.hoisted(() => {
     set isConnected(v) { isConnected = v },
     mockListSessions, mockEnsureSession,
     mockSendTextToPane, mockSendKeys, mockCaptureTarget,
-    mockPaneFromTarget, mockGetSessionMetas,
+     mockPaneFromTarget, mockGetSessionMetas,
+    mockGetCurrentSessionName, mockSplitPane,
+    mockSelectLayout, mockFindTargetByCriteria,
   }
 })
 
@@ -320,6 +330,126 @@ describe("tools", () => {
     expect(parsed.totalLines).toBe(2)
   })
 
+  it("rmux_split_pane splits pane in current session", async () => {
+    rmuxMocks.mockGetCurrentSessionName.mockResolvedValue("current-session")
+    rmuxMocks.mockSplitPane.mockResolvedValue({ target: "current-session:0.1" })
+
+    const { createTools } = await import("../tools.js")
+    const mgr = new rmuxMocks.MockRMUXManager()
+    const tools = createTools(mgr)
+    const result = await tools.rmux_split_pane.execute({}, createMockContext())
+
+    expect(result).toContain("Created new pane current-session:0.1")
+    expect(rmuxMocks.mockSplitPane).toHaveBeenCalledWith("current-session", undefined, undefined, undefined)
+  })
+
+  it("rmux_split_pane uses specified session name", async () => {
+    rmuxMocks.mockSplitPane.mockResolvedValue({ target: "custom:0.1" })
+
+    const { createTools } = await import("../tools.js")
+    const mgr = new rmuxMocks.MockRMUXManager()
+    const tools = createTools(mgr)
+    const result = await tools.rmux_split_pane.execute(
+      { sessionName: "custom" }, createMockContext(),
+    )
+
+    expect(result).toContain("custom:0.1")
+    expect(rmuxMocks.mockSplitPane).toHaveBeenCalledWith("custom", undefined, undefined, undefined)
+  })
+
+  it("rmux_split_pane passes direction and target params", async () => {
+    rmuxMocks.mockSplitPane.mockResolvedValue({ target: "test:0.2" })
+
+    const { createTools } = await import("../tools.js")
+    const mgr = new rmuxMocks.MockRMUXManager()
+    const tools = createTools(mgr)
+    const result = await tools.rmux_split_pane.execute(
+      { sessionName: "test", direction: "vertical", target: "%29", size: "50%" },
+      createMockContext(),
+    )
+
+    expect(result).toContain("test:0.2")
+    expect(rmuxMocks.mockSplitPane).toHaveBeenCalledWith("test", "50%", "vertical", "%29")
+  })
+
+  it("rmux_select_layout sets layout for current session", async () => {
+    rmuxMocks.mockGetCurrentSessionName.mockResolvedValue("current-session")
+
+    const { createTools } = await import("../tools.js")
+    const mgr = new rmuxMocks.MockRMUXManager()
+    const tools = createTools(mgr)
+    const result = await tools.rmux_select_layout.execute(
+      { layout: "even-horizontal" },
+      createMockContext(),
+    )
+
+    expect(result).toContain("even-horizontal")
+    expect(result).toContain("current-session")
+    expect(rmuxMocks.mockSelectLayout).toHaveBeenCalledWith("current-session", "even-horizontal", undefined)
+  })
+
+  it("rmux_select_layout uses specified session and window", async () => {
+    const { createTools } = await import("../tools.js")
+    const mgr = new rmuxMocks.MockRMUXManager()
+    const tools = createTools(mgr)
+    const result = await tools.rmux_select_layout.execute(
+      { sessionName: "test", layout: "tiled", windowIndex: 1 },
+      createMockContext(),
+    )
+
+    expect(result).toContain("tiled")
+    expect(result).toContain("test:1")
+    expect(rmuxMocks.mockSelectLayout).toHaveBeenCalledWith("test", "tiled", 1)
+  })
+
+  it("rmux_find_target returns target for matching pane", async () => {
+    rmuxMocks.mockFindTargetByCriteria.mockResolvedValue("test:0.1")
+
+    const { createTools } = await import("../tools.js")
+    const mgr = new rmuxMocks.MockRMUXManager()
+    const tools = createTools(mgr)
+    const result = await tools.rmux_find_target.execute(
+      { sessionName: "test", position: "right" },
+      createMockContext(),
+    )
+
+    expect(result).toBe("test:0.1")
+    expect(rmuxMocks.mockFindTargetByCriteria).toHaveBeenCalledWith({
+      sessionName: "test", position: "right",
+    })
+  })
+
+  it("rmux_find_target returns no-match message", async () => {
+    rmuxMocks.mockFindTargetByCriteria.mockResolvedValue(null)
+
+    const { createTools } = await import("../tools.js")
+    const mgr = new rmuxMocks.MockRMUXManager()
+    const tools = createTools(mgr)
+    const result = await tools.rmux_find_target.execute(
+      { command: "vim" },
+      createMockContext(),
+    )
+
+    expect(result).toContain("No pane found")
+  })
+
+  it("rmux_find_target filters by command and active", async () => {
+    rmuxMocks.mockFindTargetByCriteria.mockResolvedValue("test:0.0")
+
+    const { createTools } = await import("../tools.js")
+    const mgr = new rmuxMocks.MockRMUXManager()
+    const tools = createTools(mgr)
+    const result = await tools.rmux_find_target.execute(
+      { command: "node", active: true },
+      createMockContext(),
+    )
+
+    expect(result).toBe("test:0.0")
+    expect(rmuxMocks.mockFindTargetByCriteria).toHaveBeenCalledWith({
+      command: "node", active: true,
+    })
+  })
+
   it("rmux_observe_multi collects from multiple panes", async () => {
     rmuxMocks.mockPaneFromTarget.mockReturnValue({})
     let multiCalls = 0
@@ -363,6 +493,9 @@ describe("tools", () => {
       tools.rmux_pane_info.execute({ target: "s:0" }, ctx),
       tools.rmux_observe.execute({ target: "s:0" }, ctx),
       tools.rmux_observe_multi.execute({ panes: [{ sessionName: "s", target: "s:0" }] }, ctx),
+      tools.rmux_split_pane.execute({}, ctx),
+      tools.rmux_select_layout.execute({ layout: "tiled" }, ctx),
+      tools.rmux_find_target.execute({ command: "node" }, ctx),
     ])
 
     for (const result of results) {

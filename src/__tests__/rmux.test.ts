@@ -129,7 +129,10 @@ describe("RMUXManager", () => {
     const pane = await mgr.createAgentPane(session)
 
     expect(pane).not.toBeNull()
-    expect(mocks.mockPane.split).toHaveBeenCalledWith({ direction: "h", size: "30%" })
+    expect(mocks.mockClient.cmd).toHaveBeenCalledWith(
+      "split-window", "-d", "-P", "-F", "#{pane_id}",
+      "-h", "-l", "30%", "-t", "test:0.0"
+    )
   })
 
   it("captures pane text", async () => {
@@ -233,8 +236,8 @@ describe("RMUXManager", () => {
     mocks.mockClient.cmd.mockResolvedValueOnce({
       returnCode: 0,
       stdout: [
-        "test-session|0|0|%0|1|100|50|0||1234|bash|bash",
-        "test-session|0|1|%1|0|30|50|0||5678|zsh|zsh",
+        "test-session|0|0|%0|1|100|50|0|0|0||1234|bash|bash",
+        "test-session|0|1|%1|0|30|50|50|0|0||5678|zsh|zsh",
       ].join("\n"),
       stderr: "",
     })
@@ -255,8 +258,8 @@ describe("RMUXManager", () => {
     mocks.mockClient.cmd.mockResolvedValueOnce({
       returnCode: 0,
       stdout: [
-        "sess-a|0|0|%0|1|80|24|0||100|bash|bash",
-        "sess-b|0|0|%1|1|80|24|0||200|zsh|zsh",
+        "sess-a|0|0|%0|1|80|24|0|0|0||100|bash|bash",
+        "sess-b|0|0|%1|1|80|24|50|0|0||200|zsh|zsh",
       ].join("\n"),
       stderr: "",
     })
@@ -272,7 +275,7 @@ describe("RMUXManager", () => {
   it("getPaneMeta parses display-message output", async () => {
     mocks.mockClient.cmd.mockResolvedValueOnce({
       returnCode: 0,
-      stdout: "demo|0|1|%2|0|40|25|0||9999|node|node",
+      stdout: "demo|0|1|%2|0|40|25|10|5|0||9999|node|node",
       stderr: "",
     })
     const { RMUXManager } = await import("../rmux.js")

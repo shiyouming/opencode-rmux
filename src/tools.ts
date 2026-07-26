@@ -68,7 +68,7 @@ function formatSendKeys(rmux: RMUXManager) {
     description: "Type a command into a pane as if typing at a keyboard. Use 'Enter' at the end to run it.",
     args: {
       target: tool.schema.string(),
-      keys: tool.schema.string().describe("The exact text to type. Append 'Enter' to execute (e.g. 'npm install Enter'). Do NOT cd into a directory first — the pane has its own working directory. Do NOT add 'pause', '&&', or any extra wrapping. Type ONLY what the user asked to run."),
+      keys: tool.schema.string().describe("The exact text to type. Append 'Enter' to execute (e.g. 'npm install Enter'). Use key names like 'C-p', 'Ctrl+b', 'Enter', 'Tab', 'Escape' for control sequences (e.g. 'Ctrl+b %' to split pane). Do NOT cd into a directory first — the pane has its own working directory. Do NOT add 'pause', '&&', or any extra wrapping. Type ONLY what the user asked to run."),
     },
     async execute(args: ToolArgs, _context: ToolContext) {
       try {
@@ -270,6 +270,88 @@ export interface ToolRegistry {
   [key: string]: ReturnType<typeof tool>
 }
 
+function formatSplitPane(rmux: RMUXManager) {
+  return tool({
+    description: "Split a pane to create a new pane. Default splits to the right (horizontal). Use direction='vertical' to split downward.",
+    args: {
+      sessionName: tool.schema.string().optional().describe("Session name (defaults to the attached/active session)"),
+      size: tool.schema.string().optional().describe("Pane size (e.g. '30%', default '30%')"),
+      direction: tool.schema.string().optional().describe("Split direction: 'horizontal' (right) or 'vertical' (down). Default 'horizontal'."),
+      target: tool.schema.string().optional().describe("Pane target to split from (e.g. 'test:0.1' or '%23'). Defaults to the first/main pane."),
+    },
+    async execute(args: ToolArgs, _context: ToolContext) {
+      try {
+        if (!rmux.isConnected()) {
+          return "RMUX daemon is not connected."
+        }
+        let sessionName = args.sessionName
+        if (!sessionName) {
+          sessionName = await rmux.getCurrentSessionName()
+        }
+        if (!sessionName) {
+          return "No RMUX session found."
+        }
+        const pane = await rmux.splitPane(sessionName, args.size, args.direction, args.target)
+        return `Created new pane ${pane.target} in session "${sessionName}"`
+      } catch (error) {
+        return `Error splitting pane: ${error instanceof Error ? error.message : String(error)}`
+      }
+    },
+  })
+}
+
+function formatSelectLayout(rmux: RMUXManager) {
+  return tool({
+    description: "Change the layout of panes in a window. Supports RMUX built-in layouts.",
+    args: {
+      sessionName: tool.schema.string().optional().describe("Session name (defaults to the attached/active session)"),
+      windowIndex: tool.schema.number().optional().default(0).describe("Window index (default 0)"),
+      layout: tool.schema.string().describe("Layout name: 'even-horizontal', 'even-vertical', 'main-horizontal', 'main-vertical', 'tiled'"),
+    },
+    async execute(args: ToolArgs, _context: ToolContext) {
+      try {
+        if (!rmux.isConnected()) return "RMUX daemon is not connected."
+        let sessionName = args.sessionName
+        if (!sessionName) {
+          sessionName = await rmux.getCurrentSessionName()
+        }
+        if (!sessionName) return "No RMUX session found."
+        await rmux.selectLayout(sessionName, args.layout, args.windowIndex)
+        return `Layout set to "${args.layout}" for ${sessionName}:${args.windowIndex ?? 0}`
+      } catch (error) {
+        return `Error setting layout: ${error instanceof Error ? error.message : String(error)}`
+      }
+    },
+  })
+}
+
+function formatFindTarget(rmux: RMUXManager) {
+  return tool({
+    description: "Find a pane by criteria (title, command, position, etc.) and return its target string for use with other tools like rmux_send_keys, rmux_capture, etc.",
+    args: {
+      sessionName: tool.schema.string().optional().describe("Filter by session name"),
+      title: tool.schema.string().optional().describe("Filter by pane title (fuzzy match)"),
+      command: tool.schema.string().optional().describe("Filter by running command (fuzzy match, e.g. 'node', 'vim')"),
+      position: tool.schema.string().optional().describe("Position in window: 'left', 'right', 'top', 'bottom'"),
+      active: tool.schema.boolean().optional().describe("Filter by active status"),
+    },
+    async execute(args: ToolArgs, _context: ToolContext) {
+      try {
+        if (!rmux.isConnected()) return "RMUX daemon is not connected."
+        const criteria: Record<string, unknown> = {}
+        for (const key of ["sessionName", "title", "command", "position", "active"] as const) {
+          if (args[key] !== undefined) criteria[key] = args[key]
+        }
+        const target = await rmux.findTargetByCriteria(criteria)
+        if (!target) return "No pane found matching the criteria."
+        return target
+      } catch (error) {
+        return `Error finding target: ${error instanceof Error ? error.message : String(error)}`
+      }
+    },
+  })
+}
+
 export function createTools(rmux: RMUXManager): ToolRegistry {
   return {
     rmux_list_sessions: formatSessionList(rmux),
@@ -281,5 +363,8 @@ export function createTools(rmux: RMUXManager): ToolRegistry {
     rmux_pane_info: formatPaneInfo(rmux),
     rmux_observe: formatObserve(rmux),
     rmux_observe_multi: formatObserveMulti(rmux),
+    rmux_split_pane: formatSplitPane(rmux),
+    rmux_select_layout: formatSelectLayout(rmux),
+    rmux_find_target: formatFindTarget(rmux),
   }
 }

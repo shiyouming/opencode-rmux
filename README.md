@@ -15,7 +15,7 @@
 
 <table>
 <tr><td><b>子代理面板</b></td><td>Opencode 创建子代理时自动在 RMUX 右侧开面板，实时显示工作内容。首个水平分屏，后续垂直堆叠，高度自动平衡</td></tr>
-<tr><td><b>AI 控制工具</b></td><td>9 个工具让 AI 直接控制 RMUX：查面板、看详情、发按键、捕获内容、等文本、流式监听等</td></tr>
+<tr><td><b>AI 控制工具</b></td><td>12 个工具让 AI 直接控制 RMUX：查面板、看详情、发按键、捕获内容、等文本、流式监听、分拆面板、更改布局等</td></tr>
 <tr><td><b>跨平台</b></td><td>Windows / macOS / Linux 原生运行，无需 WSL</td></tr>
 <tr><td><b>TypeScript SDK</b></td><td>基于官方 <code>@rmux/sdk</code>，类型安全，非命令行解析</td></tr>
 </table>
@@ -50,7 +50,7 @@
 | **Linux**      | ❌  | ✅ | ✅ 原生 |
 | **TypeScript SDK** | ❌ 命令行解析 | ❌ 命令行解析 | ✅ 官方 TypeScript SDK |
 | **子代理面板**  | ✅ 3 面板上限 | ✅ 无限制 | ✅ 可配置上限，自动回收 |
-| **AI 控制工具** | ❌  | ⚠️ 部分 | ✅ **9 个专有工具** |
+| **AI 控制工具** | ❌  | ⚠️ 部分 | ✅ **12 个专有工具** |
 | **面板元数据**  | ❌  | ❌ | ✅ PID/命令/尺寸等详情 |
 | **面板搜索**    | ❌  | ❌ | ✅ 按会话/命令/状态筛选 |
 | **流式监听**    | ❌  | ❌ | ✅ 单面板/多面板实时输出流 |
@@ -210,6 +210,9 @@ Remove-Item -Recurse -Force "$env:LOCALAPPDATA\opencode\cache\packages\opencode-
 | `rmux_wait_for_text` | 等待面板中出现指定文本（支持超时） |
 | `rmux_observe` | 流式收集面板输出，返回收集到的行 |
 | `rmux_observe_multi` | 同时流式监听多个面板的输出 |
+| `rmux_split_pane` | 分拆面板创建新面板（向右或向下） |
+| `rmux_select_layout` | 更改窗口面板布局 |
+| `rmux_find_target` | 按条件查找面板并返回目标字符串 |
 
 ---
 
@@ -270,7 +273,7 @@ Remove-Item -Recurse -Force "$env:LOCALAPPDATA\opencode\cache\packages\opencode-
 ```bash
 npm install       # 安装依赖
 npm run typecheck # tsc --noEmit
-npm test          # 运行测试（98 个用例）
+npm test          # 运行测试（106 个用例）
 npm run build     # 构建 dist/
 ```
 
