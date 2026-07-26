@@ -107,7 +107,6 @@ describe("Integration: SessionManager + real RMUXManager", () => {
 
     const sm = new SessionManager(rmux, {
       splits: true,
-      maxPanes: 4,
       notifications: { done: true, permission: true, question: true, error: true },
     }, new PermissionState(), new QuestionState())
 
@@ -116,12 +115,11 @@ describe("Integration: SessionManager + real RMUXManager", () => {
       properties: { info: { id: "sub-001", parentID: "parent-001" } },
     })
 
-    expect(mocks.mockClient.cmd).toHaveBeenCalledWith(
-      "split-window", "-d", "-P", "-F", "#{pane_id}",
-      "-h", "-l", "30%", "-t",
-      expect.any(String),
-      "opencode attach http://localhost:12345 --session sub-001"
-    )
+    const splitCall = mocks.mockPane.split.mock.calls[0][0]
+    expect(splitCall.direction).toBe("horizontal")
+    expect(splitCall.size).toBe("30%")
+    expect(splitCall.shellCommand).toContain("OPENCODE_RMUX_DISABLE_SPLITS=1")
+    expect(splitCall.shellCommand).toContain("opencode attach http://localhost:12345 --session sub-001")
   })
 
   it("skips creation when splits disabled", async () => {
@@ -134,7 +132,6 @@ describe("Integration: SessionManager + real RMUXManager", () => {
 
     const sm = new SessionManager(rmux, {
       splits: false,
-      maxPanes: 4,
       notifications: { done: true, permission: true, question: true, error: true },
     }, new PermissionState(), new QuestionState())
 
@@ -156,7 +153,6 @@ describe("Integration: SessionManager + real RMUXManager", () => {
     const questions = new QuestionState()
     const sm = new SessionManager(rmux, {
       splits: false,
-      maxPanes: 4,
       notifications: { done: true, permission: true, question: true, error: true },
     }, perms, questions)
 
@@ -181,7 +177,6 @@ describe("Integration: SessionManager + real RMUXManager", () => {
 
     const sm = new SessionManager(rmux, {
       splits: true,
-      maxPanes: 4,
       notifications: { done: true, permission: true, question: true, error: true },
     }, new PermissionState(), new QuestionState())
 
@@ -195,7 +190,7 @@ describe("Integration: SessionManager + real RMUXManager", () => {
       properties: { sessionID: "sub-020" },
     })
 
-    expect(mocks.mockClient.cmd).toHaveBeenCalledWith("kill-pane", "-t", "test:0.0")
+    expect(mocks.mockPane.close).toHaveBeenCalled()
   })
 })
 

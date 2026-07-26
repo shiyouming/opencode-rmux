@@ -198,9 +198,11 @@ AI 就知道该调哪个功能了。
   "splits": true,
   "splitSize": "30%",
   "keepPaneOnIdle": false,
-  "maxPanes": 4,
+  "debug": false,
   "notifications": {
     "done": true,
+    "permission": true,
+    "question": true,
     "error": true
   }
 }
@@ -211,8 +213,10 @@ AI 就知道该调哪个功能了。
 | `splits` | `true` | 子代理是否自动分屏 |
 | `splitSize` | `"30%"` | 分屏宽度 |
 | `keepPaneOnIdle` | `false` | 完事后是否保留面板 |
-| `maxPanes` | `4` | 最多几个子代理同时显示 |
+| `debug` | `false` | 调试日志输出到 stderr |
 | `notifications.done` | `true` | 完成时是否弹通知 |
+| `notifications.permission` | `true` | 权限请求通知 |
+| `notifications.question` | `true` | AI 提问通知 |
 | `notifications.error` | `true` | 出错时是否弹通知 |
 
 改完后重启 opencode 生效。

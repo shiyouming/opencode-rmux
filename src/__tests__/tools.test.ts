@@ -154,7 +154,7 @@ describe("tools", () => {
   })
 
   it("rmux_create_session creates session with command", async () => {
-    const mockPane = { sendText: vi.fn() }
+    const mockPane = { sendText: vi.fn(), target: "%0" }
     const mockWindow2 = { pane: vi.fn().mockReturnValue(mockPane) }
     rmuxMocks.mockEnsureSession.mockResolvedValue({
       window: vi.fn().mockReturnValue(mockWindow2),

@@ -3,12 +3,9 @@ import { loadConfig, type RMUXPluginConfig } from "./config.js"
 import { RMUXManager } from "./rmux.js"
 import { SessionManager, type SessionEvent } from "./sessions.js"
 import { createTools } from "./tools.js"
-import { EventEmitter } from "node:events"
 import { PermissionState, QuestionState } from "./state.js"
 
 const plugin: Plugin = async () => {
-  EventEmitter.defaultMaxListeners = 0
-  process.setMaxListeners(0)
   const config: RMUXPluginConfig = loadConfig()
   const rmux = new RMUXManager()
   const permission = new PermissionState()
@@ -28,6 +25,7 @@ const plugin: Plugin = async () => {
     },
 
     tool: createTools(rmux),
+    destroy: () => sessionManager.stopCleanupTimer(),
   }
 }
 

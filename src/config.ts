@@ -13,7 +13,6 @@ export interface RMUXPluginConfig {
   splits: boolean
   splitSize: string
   keepPaneOnIdle: boolean
-  maxPanes: number
   debug: boolean
   notifications: RMUXNotifications
 }
@@ -22,7 +21,6 @@ const DEFAULT_CONFIG: RMUXPluginConfig = {
   splits: true,
   splitSize: "30%",
   keepPaneOnIdle: false,
-  maxPanes: 4,
   debug: false,
   notifications: {
     done: true,
@@ -32,7 +30,7 @@ const DEFAULT_CONFIG: RMUXPluginConfig = {
   },
 }
 
-const SPLIT_SIZE_RE = /^\d+(%|px)$/
+const SPLIT_SIZE_RE = /^\d+%$/
 
 function resolveConfigDir(): string {
   return process.env.XDG_CONFIG_HOME || join(homedir(), ".config")
@@ -50,7 +48,6 @@ function readConfig(): RMUXPluginConfig {
       splits: DEFAULT_CONFIG.splits,
       splitSize: DEFAULT_CONFIG.splitSize,
       keepPaneOnIdle: DEFAULT_CONFIG.keepPaneOnIdle,
-      maxPanes: DEFAULT_CONFIG.maxPanes,
       debug: DEFAULT_CONFIG.debug,
       notifications: { ...DEFAULT_CONFIG.notifications },
     }
@@ -65,10 +62,6 @@ function readConfig(): RMUXPluginConfig {
 
     if (typeof parsed.keepPaneOnIdle === "boolean") {
       config.keepPaneOnIdle = parsed.keepPaneOnIdle
-    }
-
-    if (typeof parsed.maxPanes === "number" && Number.isInteger(parsed.maxPanes) && parsed.maxPanes >= 1) {
-      config.maxPanes = parsed.maxPanes
     }
 
     if (typeof parsed.debug === "boolean") {
@@ -97,4 +90,8 @@ export function loadConfig(): RMUXPluginConfig {
     cachedConfig = readConfig()
   }
   return cachedConfig
+}
+
+export function clearConfigCache(): void {
+  cachedConfig = null
 }

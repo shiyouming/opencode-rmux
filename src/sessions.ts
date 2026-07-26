@@ -5,9 +5,16 @@ import { resolveServerUrlWithRetry } from "./lsof.js"
 import type { PermissionState, QuestionState } from "./state.js"
 
 
-function serverAvailable(url: string): Promise<boolean> {
+function serverAvailable(rawUrl: string): Promise<boolean> {
+  let url: URL
+  try {
+    url = new URL(rawUrl)
+  } catch {
+    return Promise.resolve(false)
+  }
   return new Promise(resolve => {
     const req = request(url, { method: "HEAD", timeout: 2000 }, res => {
+      req.destroy()
       resolve(res.statusCode !== undefined)
     })
     req.on("error", () => resolve(false))
@@ -27,16 +34,19 @@ export class SessionManager {
   private config: RMUXPluginConfig
   private activeSplits = new Map<string, string>()
   private idleBlocked = new Set<string>()
+  private subagentSessions = new Set<string>()
   private splitQueue = Promise.resolve<unknown>(undefined)
   private mainSession: string | null = null
   private permission: PermissionState
   private question: QuestionState
+  private cleanupTimer: ReturnType<typeof setInterval> | null = null
 
   constructor(rmux: RMUXManager, config: RMUXPluginConfig, permission: PermissionState, question: QuestionState) {
     this.rmux = rmux
     this.config = config
     this.permission = permission
     this.question = question
+    this.startCleanupTimer()
   }
 
   async handleEvent(event: SessionEvent): Promise<void> {
@@ -74,7 +84,7 @@ export class SessionManager {
   }
 
   private enqueueSplitOp<T>(fn: () => Promise<T>): Promise<T> {
-    const result = this.splitQueue.then(fn, fn)
+    const result = this.splitQueue.then(() => fn(), () => fn())
     this.splitQueue = result.then(
       () => {},
       () => {},
@@ -84,7 +94,7 @@ export class SessionManager {
 
   private notify(message: string): void {
     if (!this.rmux.isConnected()) return
-    this.rmux.cmd("display-message", `opencode-rmux: ${message}`).catch(() => {})
+    this.rmux.cmd("display-message", `opencode-rmux: ${message.replace(/#/g, "##")}`).catch(() => {})
   }
 
   private log(...args: unknown[]): void {
@@ -99,8 +109,10 @@ export class SessionManager {
       return
     }
     this.activeSplits.delete(sessionId)
+    this.subagentSessions.delete(sessionId)
     this.idleBlocked.delete(sessionId)
     await this.rmux.closeTarget(target)
+    await new Promise(r => setTimeout(r, 200))
   }
 
   private async findOrCreateSession(): Promise<string | null> {
@@ -112,20 +124,79 @@ export class SessionManager {
         this.mainSession = name
         return this.mainSession
       }
-    } catch {
+    } catch (err) {
+      this.log("findOrCreateSession error:", err)
     }
     return null
+  }
+
+  stopCleanupTimer(): void {
+    if (this.cleanupTimer) {
+      clearInterval(this.cleanupTimer)
+      this.cleanupTimer = null
+    }
+  }
+
+  private startCleanupTimer(): void {
+    this.stopCleanupTimer()
+    this.cleanupTimer = setInterval(() => {
+      if (!this.rmux.isConnected()) return
+      this.enqueueSplitOp(async () => {
+        await this.cleanupOrphanedPanes()
+      })
+    }, 30000)
+  }
+
+  private async cleanupOrphanedPanes(): Promise<void> {
+    const toClean: Array<[string, string]> = []
+    for (const [sessionId, target] of this.activeSplits) {
+      if (target === "pending") continue
+      toClean.push([sessionId, target])
+    }
+    for (const [sessionId, target] of toClean) {
+      try {
+        const meta = await this.rmux.getPaneMeta(target)
+        if (meta.dead) {
+          this.log("cleaning orphaned pane:", sessionId.slice(0, 8))
+          this.activeSplits.delete(sessionId)
+          this.subagentSessions.delete(sessionId)
+          this.idleBlocked.delete(sessionId)
+          await this.rmux.closeTarget(target)
+        }
+      } catch (err) {
+        this.log("cleanupOrphanedPanes getPaneMeta error:", err)
+      }
+    }
+    for (const sessionId of [...this.subagentSessions]) {
+      if (!this.activeSplits.has(sessionId)) {
+        this.subagentSessions.delete(sessionId)
+      }
+    }
   }
 
   private async onSessionCreated(properties: Record<string, any>): Promise<void> {
     const info = properties.info
     if (!info?.parentID || !this.config.splits) return
+    if (process.env.OPENCODE_RMUX_DISABLE_SPLITS) return
 
-    const url = await resolveServerUrlWithRetry()
-    if (!url) return
-    if (!(await serverAvailable(url))) return
+    const rawUrl = await resolveServerUrlWithRetry()
+    if (!rawUrl) return
+    if (!(await serverAvailable(rawUrl))) return
+
+    let url: URL
+    try { url = new URL(rawUrl) } catch { return }
+    if (url.protocol !== "http:" && url.protocol !== "https:") return
+    const safeUrl = url.origin
 
     await this.enqueueSplitOp(async () => {
+      if (this.subagentSessions.has(info.parentID)) {
+        this.log("skipping nested subagent:", info.id.slice(0, 8))
+        this.subagentSessions.add(info.id)
+        return
+      }
+
+      await this.cleanupOrphanedPanes()
+
       if (this.activeSplits.has(info.id)) {
         if (this.activeSplits.get(info.id) === "pending") return
         this.activeSplits.delete(info.id)
@@ -134,30 +205,26 @@ export class SessionManager {
       try {
         this.activeSplits.set(info.id, "pending")
 
-        const realPanes = [...this.activeSplits.values()].filter(v => v !== "pending").length
-        if (realPanes >= this.config.maxPanes) {
-          for (const [oldestId, val] of this.activeSplits) {
-            if (val === "pending") continue
-            this.log("maxPanes reached, recycling:", oldestId.slice(0, 8))
-            await this.removeAndClose(oldestId, true)
-            break
-          }
-        }
-
         const sessionName = await this.findOrCreateSession()
         if (!sessionName) { this.activeSplits.delete(info.id); return }
         const session = await this.rmux.getSession(sessionName)
-        if (!session) { this.activeSplits.delete(info.id); return }
+        if (!session) { this.activeSplits.delete(info.id); this.mainSession = null; return }
 
-        const attachCmd = `opencode attach ${url} --session ${info.id}`
+        const attachCmd = `opencode attach ${safeUrl} --session ${info.id}`
         const pane = await this.rmux.createAgentPane(session, attachCmd, this.config.splitSize)
         this.activeSplits.set(info.id, pane.target)
+        this.subagentSessions.add(info.id)
         await this.rmux.balanceRightPanes(sessionName)
         if (this.config.notifications?.done !== false) {
           this.notify(`subagent spawned: ${info.id.slice(0, 8)}`)
         }
       } catch {
+        const target = this.activeSplits.get(info.id)
+        if (target && target !== "pending") {
+          await this.rmux.closeTarget(target)
+        }
         this.activeSplits.delete(info.id)
+        this.subagentSessions.delete(info.id)
       }
     })
   }
@@ -175,9 +242,6 @@ export class SessionManager {
   }
 
   private async onSessionError(properties: Record<string, any>): Promise<void> {
-    this.permission.clear()
-    this.question.clear()
-
     const sessionId = properties.sessionID ?? properties.info?.id
     if (sessionId && this.activeSplits.has(sessionId)) {
       await this.enqueueSplitOp(async () => {
@@ -194,6 +258,7 @@ export class SessionManager {
     const status = properties.status ?? properties.info?.status
 
     if (status?.type === "busy" && this.activeSplits.has(sessionId)) {
+      this.idleBlocked.delete(sessionId)
       this.log("busy:", sessionId.slice(0, 8))
     }
 
@@ -248,8 +313,9 @@ export class SessionManager {
 
   private async flushIdleBlocked(): Promise<void> {
     if (this.hasPendingInput() || this.idleBlocked.size === 0) return
-    for (const sessionId of this.idleBlocked) {
-      this.idleBlocked.delete(sessionId)
+    const blocked = [...this.idleBlocked]
+    this.idleBlocked.clear()
+    for (const sessionId of blocked) {
       await this.enqueueSplitOp(async () => {
         await this.removeAndClose(sessionId)
         if (this.config.notifications?.done !== false) {

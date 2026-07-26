@@ -59,19 +59,40 @@ export class RMUXManager {
     try {
       if (!this.client) throw new Error("RMUX not connected")
       const mainWindow = session.window(0)
-      const panes = await mainWindow.panes()
+      if (!mainWindow) throw new Error("Session has no window 0")
+      const panesBefore = await mainWindow.panes()
       const size = splitSize ?? "30%"
-      const isFirstSplit = panes.length <= 1
-      const target = isFirstSplit ? panes[0].target : panes[panes.length - 1].target
-      const direction = isFirstSplit ? "-h" : "-v"
-      const splitSizeArg = isFirstSplit ? size : `${Math.floor(100 / (panes.length + 1))}%`
-      const args: string[] = [
-        "split-window", "-d", "-P", "-F", "#{pane_id}",
-        direction, "-l", splitSizeArg, "-t", target,
-      ]
-      if (shellCommand) args.push(shellCommand)
-      const run = await this.client.cmd(...(args as [string, ...string[]]))
-      return new Pane(this.client, run.stdout.trim())
+      const isFirstSplit = panesBefore.length <= 1
+      const targetPane = panesBefore[isFirstSplit ? 0 : panesBefore.length - 1]
+      const direction = isFirstSplit ? "horizontal" : "vertical"
+      const newPane = await targetPane.split({
+        direction,
+        size: isFirstSplit ? size : `${Math.floor(100 / (panesBefore.length + 1))}%`,
+        shellCommand: shellCommand
+          ? `${process.platform === "win32"
+              ? `cmd.exe /c "set OPENCODE_RMUX_DISABLE_SPLITS=1 &&`
+              : "OPENCODE_RMUX_DISABLE_SPLITS=1"} ${shellCommand}${process.platform === "win32"
+              ? `"`
+              : ""}`
+          : undefined,
+      })
+      let panesAfter = await mainWindow.panes()
+      const knownTargets = new Set<string>()
+      for (const bp of panesBefore) knownTargets.add(bp.target)
+      knownTargets.add(newPane.target)
+      for (const p of panesAfter) {
+        if (knownTargets.has(p.target)) continue
+        await p.close().catch(() => {})
+      }
+      for (let retry = 0; retry < 2; retry++) {
+        await new Promise(r => setTimeout(r, 300))
+        panesAfter = await mainWindow.panes()
+        for (const p of panesAfter) {
+          if (knownTargets.has(p.target)) continue
+          await p.close().catch(() => {})
+        }
+      }
+      return newPane
     } catch {
       throw new Error("Failed to create agent pane")
     }
@@ -173,8 +194,10 @@ export class RMUXManager {
     if (!this.client) return
     try {
       const session = this.client.session(name)
-      await session.kill()
-      return
+      if (session) {
+        await session.kill()
+        return
+      }
     } catch {
     }
     try { await this.client.cmd("kill-session", "-t", name) } catch {}
@@ -187,7 +210,7 @@ export class RMUXManager {
       const height = Number(raw.stdout.trim().split("\n")[0])
       if (!height) return
 
-      const rawPanes = await this.client.cmd("list-panes", "-t", sessionName, "-F", "#{pane_index} #{pane_id}")
+      const rawPanes = await this.client.cmd("list-panes", "-t", `${sessionName}:0`, "-F", "#{pane_index} #{pane_id}")
       const rightPanes: string[] = []
       for (const line of rawPanes.stdout.trim().split("\n")) {
         const [idx, id] = line.trim().split(/\s+/)
@@ -233,9 +256,14 @@ export class RMUXManager {
   async findPanes(query: FindPanesQuery): Promise<PaneMeta[]> {
     const all = await this.listPaneMetas()
     return all.filter(pane =>
-      Object.entries(query).every(([key, val]) =>
-        val === undefined || val === null ||       (pane as unknown as Record<string, unknown>)[key] === val
-      )
+      Object.entries(query).every(([key, val]) => {
+        if (val === undefined || val === null) return true
+        const paneVal = (pane as unknown as Record<string, unknown>)[key]
+        if (typeof val === "string" && typeof paneVal === "string") {
+          return paneVal.toLowerCase().includes(val.toLowerCase())
+        }
+        return paneVal === val
+      })
     )
   }
 
@@ -272,7 +300,8 @@ export class RMUXManager {
     if (!this.client) return null
     try {
       const raw = await this.client.cmd("display-message", "-p", "#{session_name}")
-      if (raw.stdout.trim()) return raw.stdout.trim()
+      const trimmed = raw.stdout.trim()
+      if (trimmed !== "") return trimmed
     } catch {
     }
     try {
@@ -315,7 +344,8 @@ export class RMUXManager {
     if (target || direction) {
       const dirFlag = direction === "vertical" ? "-v" : "-h"
       const size = splitSize ?? "30%"
-      const targetPane = target ?? session.window(0).pane(0).target
+      const targetPane = target ?? session.window(0)?.pane(0)?.target
+      if (!targetPane) throw new Error("No target pane available")
       const args: string[] = [
         "split-window", "-d", "-P", "-F", "#{pane_id}",
         dirFlag, "-l", size, "-t", targetPane,
@@ -369,11 +399,13 @@ export class RMUXManager {
         const group = perWindow.get(`${p.sessionName}:${p.windowIndex}`)!
         const minLeft = Math.min(...group.map(x => x.paneLeft))
         const maxLeft = Math.max(...group.map(x => x.paneLeft))
+        const minTop = Math.min(...group.map(x => x.paneTop))
         const maxTop = Math.max(...group.map(x => x.paneTop))
-        if (pos === "left" || pos === "top-left" || pos === "top") return p.paneLeft === minLeft
+        if (pos === "left" || pos === "top-left") return p.paneLeft === minLeft
+        if (pos === "top") return p.paneTop === minTop
         if (pos === "right") return p.paneLeft > minLeft
         if (pos === "bottom") return p.paneTop === maxTop && group.length > 1
-        return true
+        return false
       })
     }
 
@@ -384,11 +416,19 @@ export class RMUXManager {
 
   async closeTarget(target: string): Promise<void> {
     if (!this.client) return
-    try { await this.client.cmd("kill-pane", "-t", target) } catch {}
+    try { await this.paneFromTarget(target)?.close() } catch {}
   }
 
   private parsePaneMetaLine(line: string): PaneMeta {
     const parts = line.split("|")
+    if (parts.length < 14) {
+      return {
+        sessionName: parts[0] ?? "", windowIndex: 0, paneIndex: 0,
+        paneId: parts[3] ?? "%0", active: false, width: 0, height: 0,
+        paneLeft: 0, paneTop: 0, dead: true, deadStatus: null, pid: null,
+        title: "", currentCommand: "",
+      }
+    }
     return {
       sessionName: parts[0],
       windowIndex: Number(parts[1]),

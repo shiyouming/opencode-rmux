@@ -50,10 +50,12 @@ function formatCreateSession(rmux: RMUXManager) {
         } catch {}
         let msg = `Created RMUX session "${args.name}"${metaInfo}`
         if (args.command) {
-          const pane = session.window(0).pane(0)
+          const win = session.window(0)
+          const pane = win?.pane(0)
+          if (!pane) return `Session "${args.name}" has no pane`
           await rmux.sendTextToPane(pane, args.command)
-          await rmux.sendTextToPane(pane, "\n")
-          msg += ` and running command: ${args.command}`
+          await rmux.sendKeys(pane.target, "Enter")
+          msg += ` and ran command: ${args.command}`
         }
         return msg
       } catch (error) {
@@ -248,7 +250,9 @@ function formatObserveMulti(rmux: RMUXManager) {
         }
         const monitor = new MonitorManager()
         const tasks = paneList.map(async p => {
-          const fullTarget = p.target.includes(":") ? p.target : `${p.sessionName}:${p.target}`
+          const fullTarget = p.target.includes(":") || p.target.startsWith("%")
+            ? p.target
+            : `${p.sessionName}:${p.target}`
           const pane = rmux.paneFromTarget(fullTarget)
           if (!pane) return { target: p.target, error: "Cannot resolve pane" }
           const result = await monitor.collectLines(pane, {
@@ -291,6 +295,12 @@ function formatSplitPane(rmux: RMUXManager) {
         if (!sessionName) {
           return "No RMUX session found."
         }
+        if (args.direction && !["horizontal", "vertical"].includes(args.direction)) {
+          return 'Invalid direction. Use "horizontal" or "vertical".'
+        }
+        if (args.size && !/^\d+%$/.test(args.size)) {
+          return 'Invalid size. Use a percentage like "30%".'
+        }
         const pane = await rmux.splitPane(sessionName, args.size, args.direction, args.target)
         return `Created new pane ${pane.target} in session "${sessionName}"`
       } catch (error) {
@@ -316,6 +326,9 @@ function formatSelectLayout(rmux: RMUXManager) {
           sessionName = await rmux.getCurrentSessionName()
         }
         if (!sessionName) return "No RMUX session found."
+        if (!args.layout || !["even-horizontal", "even-vertical", "main-horizontal", "main-vertical", "tiled"].includes(args.layout)) {
+          return 'Invalid layout. Use: even-horizontal, even-vertical, main-horizontal, main-vertical, or tiled.'
+        }
         await rmux.selectLayout(sessionName, args.layout, args.windowIndex)
         return `Layout set to "${args.layout}" for ${sessionName}:${args.windowIndex ?? 0}`
       } catch (error) {

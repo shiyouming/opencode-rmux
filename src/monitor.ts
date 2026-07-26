@@ -20,12 +20,15 @@ export class MonitorManager {
       try {
         const output = await PaneOutputStream.open(pane)
         const stream = new PaneLineStream(output)
-        while (!ac.signal.aborted) {
-          const line = await stream.next(1)
-          if (!line) break
-          opts.onLine?.(line)
+        try {
+          while (!ac.signal.aborted) {
+            const line = await stream.next()
+            if (!line) break
+            opts.onLine?.(line)
+          }
+        } finally {
+          await stream.close().catch(() => {})
         }
-        await stream.close().catch(() => {})
       } catch (err) {
         opts.onError?.(err instanceof Error ? err : new Error(String(err)))
       } finally {
@@ -54,12 +57,15 @@ export class MonitorManager {
     const run = async () => {
       try {
         const output = await PaneOutputStream.open(pane)
-        while (!ac.signal.aborted) {
-          const chunk = await output.next(1)
-          if (!chunk) break
-          opts.onData?.(chunk.data.toString())
+        try {
+          while (!ac.signal.aborted) {
+            const chunk = await output.next()
+            if (!chunk) break
+            opts.onData?.(chunk.data.toString())
+          }
+        } finally {
+          await output.close().catch(() => {})
         }
-        await output.close().catch(() => {})
       } catch (err) {
         opts.onError?.(err instanceof Error ? err : new Error(String(err)))
       } finally {
@@ -88,12 +94,15 @@ export class MonitorManager {
     const run = async () => {
       try {
         const stream = await PaneRenderStream.open(pane)
-        while (!ac.signal.aborted) {
-          const snapshot = await stream.next(1)
-          if (!snapshot) break
-          opts.onRender?.(snapshot.visibleText)
+        try {
+          while (!ac.signal.aborted) {
+            const snapshot = await stream.next()
+            if (!snapshot) break
+            opts.onRender?.(snapshot.visibleText)
+          }
+        } finally {
+          await stream.close().catch(() => {})
         }
-        await stream.close().catch(() => {})
       } catch (err) {
         opts.onError?.(err instanceof Error ? err : new Error(String(err)))
       } finally {
@@ -124,13 +133,15 @@ export class MonitorManager {
 
     try {
       while (Date.now() < deadline && lines.length < opts.maxLines) {
-        const remaining = Math.max(0, deadline - Date.now())
+        const remaining = Math.max(1, deadline - Date.now())
+        let timer: ReturnType<typeof setTimeout> | null = null
         const result = await Promise.race([
-          stream.next(1),
-          new Promise<typeof TIMEOUT>(resolve =>
-            setTimeout(() => resolve(TIMEOUT), remaining)
-          ),
+          stream.next(1000),
+          new Promise<typeof TIMEOUT>(resolve => {
+            timer = setTimeout(() => resolve(TIMEOUT), remaining)
+          }),
         ])
+        if (timer) clearTimeout(timer)
         if (result === TIMEOUT) continue
         if (result === null) { stoppedReason = "streamEnd"; break }
         lines.push(result)
@@ -158,13 +169,15 @@ export class MonitorManager {
 
     try {
       while (Date.now() < deadline) {
-        const remaining = Math.max(0, deadline - Date.now())
+        const remaining = Math.max(1, deadline - Date.now())
+        let timer: ReturnType<typeof setTimeout> | null = null
         const result = await Promise.race([
-          stream.next(1),
-          new Promise<typeof TIMEOUT>(resolve =>
-            setTimeout(() => resolve(TIMEOUT), remaining)
-          ),
+          stream.next(1000),
+          new Promise<typeof TIMEOUT>(resolve => {
+            timer = setTimeout(() => resolve(TIMEOUT), remaining)
+          }),
         ])
+        if (timer) clearTimeout(timer)
         if (result === TIMEOUT) continue
         if (result === null) break
         if (typeof pattern === "string") {
@@ -172,6 +185,10 @@ export class MonitorManager {
         } else {
           if (pattern.test(result)) return result
         }
+      }
+    } catch (err) {
+      if (typeof process !== "undefined" && process.env.OPENCODE_RMUX_DEBUG) {
+        console.error("[opencode-rmux] waitForPattern error:", err)
       }
     } finally {
       await stream.close().catch(() => {})
@@ -188,7 +205,7 @@ export class MonitorManager {
   }
 
   async stopAll(): Promise<void> {
-    for (const [id, ac] of this.streams) {
+    for (const [, ac] of [...this.streams]) {
       ac.abort()
     }
     this.streams.clear()

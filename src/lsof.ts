@@ -29,7 +29,7 @@ function findPortViaNetstat(pid: number): string | null {
     )
     for (const line of out.split("\n")) {
       const parts = line.trim().split(/\s+/)
-      if (parts.length >= 5 && parts[4] === pid.toString()) {
+      if (parts.length >= 5 && parts[3] === "LISTENING" && parts[4] === pid.toString()) {
         const addr = parts[1]
         const portMatch = addr.match(/:(\d+)$/)
         if (portMatch) return portMatch[1]
@@ -67,6 +67,8 @@ function findPort(pid: number): string | null {
 }
 
 let cachedUrl: string | null | undefined
+let cachedAt = 0
+const CACHE_TTL = 60_000
 
 function tryResolve(): string | null {
   if (process.env.OPENCODE_SERVER_URL) {
@@ -87,8 +89,9 @@ function tryResolve(): string | null {
 }
 
 export function resolveServerUrl(): string | null {
-  if (cachedUrl !== undefined) return cachedUrl
+  if (cachedUrl !== undefined && Date.now() - cachedAt < CACHE_TTL) return cachedUrl
   cachedUrl = tryResolve() ?? null
+  cachedAt = Date.now()
   return cachedUrl
 }
 
@@ -102,13 +105,16 @@ export async function resolveServerUrlWithRetry(maxAttempts = 5, delayMs = 500):
     const result = tryResolve()
     if (result) {
       cachedUrl = result
+      cachedAt = Date.now()
       return result
     }
   }
   cachedUrl = null
+  cachedAt = Date.now()
   return null
 }
 
 export function clearServerUrlCache(): void {
   cachedUrl = undefined
+  cachedAt = 0
 }

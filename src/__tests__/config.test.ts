@@ -108,6 +108,7 @@ describe("config", () => {
   it("uses XDG_CONFIG_HOME when set", async () => {
     const original = process.env.XDG_CONFIG_HOME
     process.env.XDG_CONFIG_HOME = "/custom/config"
+    try {
 
     const { readFileSync } = await import("node:fs")
     vi.mocked(readFileSync).mockReturnValue(JSON.stringify({
@@ -120,6 +121,8 @@ describe("config", () => {
     const expectedPath = join("/custom/config", "opencode", "opencode-rmux.json")
     expect(readFileSync).toHaveBeenCalledWith(expectedPath, "utf-8")
 
-    process.env.XDG_CONFIG_HOME = original
+    } finally {
+      process.env.XDG_CONFIG_HOME = original
+    }
   })
 })

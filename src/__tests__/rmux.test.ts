@@ -129,10 +129,11 @@ describe("RMUXManager", () => {
     const pane = await mgr.createAgentPane(session)
 
     expect(pane).not.toBeNull()
-    expect(mocks.mockClient.cmd).toHaveBeenCalledWith(
-      "split-window", "-d", "-P", "-F", "#{pane_id}",
-      "-h", "-l", "30%", "-t", "test:0.0"
-    )
+    expect(mocks.mockPane.split).toHaveBeenCalledWith({
+      direction: "horizontal",
+      size: "30%",
+      shellCommand: undefined,
+    })
   })
 
   it("captures pane text", async () => {
@@ -191,14 +192,14 @@ describe("RMUXManager", () => {
     expect(result.returnCode).toBe(0)
   })
 
-  it("closeTarget calls kill-pane cmd", async () => {
+  it("closeTarget calls pane.close()", async () => {
     const { RMUXManager } = await import("../rmux.js")
     const mgr = new RMUXManager()
     await mgr.connect()
 
     await mgr.closeTarget("test:0")
 
-    expect(mocks.mockClient.cmd).toHaveBeenCalledWith("kill-pane", "-t", "test:0")
+    expect(mocks.mockPane.close).toHaveBeenCalled()
   })
 
   it("closeSession tries session.kill first, falls back to cmd", async () => {

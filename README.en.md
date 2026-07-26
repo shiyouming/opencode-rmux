@@ -49,7 +49,7 @@
 | **macOS**                | ✅  | ✅ | ✅ Native |
 | **Linux**                | ❌  | ✅ | ✅ Native |
 | **TypeScript SDK**       | ❌ CLI parsing | ❌ CLI parsing | ✅ Official TypeScript SDK |
-| **Subagent Panes**       | ✅ 3 pane limit | ✅ Unlimited | ✅ Configurable limit, auto-recycle |
+| **Subagent Panes**       | ✅ 3 pane limit | ✅ Unlimited | ✅ Auto-managed (closes on idle) |
 | **AI RMUX Tools**        | ❌  | ⚠️ Partial | ✅ **12 dedicated tools** |
 | **Pane Metadata**        | ❌  | ❌ | ✅ PID/command/size details |
 | **Pane Search**          | ❌  | ❌ | ✅ Filter by session/command/status |
@@ -139,7 +139,7 @@ Installed? Try telling the AI in opencode:
 Show me what terminal windows are running right now
 ```
 
-If the AI answers you, the plugin is working. For more, check the [Tutorial](TUTORIAL.en.md).
+If the AI answers you, the plugin is working. For more, check the [Quick Start](TUTORIAL.en.md).
 
 ---
 
@@ -152,7 +152,6 @@ File: `~/.config/opencode/opencode-rmux.json`. If missing, all options use defau
   "splits": true,
   "splitSize": "30%",
   "keepPaneOnIdle": false,
-  "maxPanes": 4,
   "debug": false,
   "notifications": {
     "done": true,
@@ -168,7 +167,6 @@ File: `~/.config/opencode/opencode-rmux.json`. If missing, all options use defau
 | `splits` | boolean | `true` | Enable subagent pane creation |
 | `splitSize` | string | `"30%"` | Right panel width (e.g. `"30%"`, `"50%"`) |
 | `keepPaneOnIdle` | boolean | `false` | Keep pane after subagent completes |
-| `maxPanes` | number | `4` | Max panes; oldest recycled when full |
 | `debug` | boolean | `false` | Debug logging to stderr |
 | `notifications.done` | boolean | `true` | Subagent completion notification |
 | `notifications.permission` | boolean | `true` | Permission request notification |
@@ -192,7 +190,6 @@ File: `~/.config/opencode/opencode-rmux.json`. If missing, all options use defau
 - **First subagent**: Horizontal split (right panel, default 30% width via `splitSize`)
 - **Subsequent subagents**: Vertical splits from the last pane, stacking downward
 - **Height balancing**: Each split triggers `resize-pane` to equalize all right-side pane heights
-- **Pane recycling**: At `maxPanes` limit, oldest pane is force-closed for the new one
 - **Cleanup**: With `keepPaneOnIdle: false`, panes close immediately on subagent completion
 
 ---
@@ -275,7 +272,7 @@ Remove-Item -Recurse -Force "$env:LOCALAPPDATA\opencode\cache\packages\opencode-
 ```bash
 npm install       # install dependencies
 npm run typecheck # tsc --noEmit
-npm test          # run tests (106 test cases)
+npm test          # run tests (109 test cases)
 npm run build     # build dist/
 ```
 

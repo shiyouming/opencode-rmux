@@ -16,11 +16,13 @@ Install RMUX for me
 
 The AI will give you the right command for your OS (Windows / macOS / Linux).
 
+**Don't know what RMUX is?** That's fine — you don't need to use RMUX directly. The AI handles it for you.
+
 ---
 
 ## Quick Demo (2 minutes)
 
-Make sure RMUX is running and opencode has been restarted. Then tell the AI:
+Make sure RMUX is installed and opencode has been restarted. Then tell the AI:
 
 ```
 Show me what terminal windows are running right now
@@ -49,6 +51,8 @@ Which panel is running npm?
 ```
 
 The AI scans all windows and panels and tells you what's where.
+
+When you see output like `opencode:0.1`, that is a pane address — you don't need to remember it, the AI handles it.
 
 ### 2. Read a pane's content
 
@@ -104,9 +108,11 @@ When the AI spawns subagents to work in parallel, you'll see panels appear on th
 
 ```
 +----------+------+
-|          |subag |
-|  Chat    |ent w |
-|  Panel   |orking|
+|          | sub  |
+|  Chat    |      |
+|  Panel   +------+
+|          | sub  |
+|          |      |
 +----------+------+
 ```
 
@@ -181,9 +187,11 @@ The plugin works with defaults — no config needed. To customize, create:
   "splits": true,
   "splitSize": "30%",
   "keepPaneOnIdle": false,
-  "maxPanes": 4,
+  "debug": false,
   "notifications": {
     "done": true,
+    "permission": true,
+    "question": true,
     "error": true
   }
 }
@@ -194,8 +202,10 @@ The plugin works with defaults — no config needed. To customize, create:
 | `splits` | `true` | Auto-split for subagents |
 | `splitSize` | `"30%"` | Width of the right panel |
 | `keepPaneOnIdle` | `false` | Keep panel after subagent finishes |
-| `maxPanes` | `4` | Max subagent panels at once |
+| `debug` | `false` | Debug logging to stderr |
 | `notifications.done` | `true` | Notify on completion |
+| `notifications.permission` | `true` | Permission request notification |
+| `notifications.question` | `true` | AI question notification |
 | `notifications.error` | `true` | Notify on error |
 
 Restart opencode after changing config.

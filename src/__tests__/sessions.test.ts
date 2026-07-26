@@ -6,6 +6,8 @@ const rmuxMocks = vi.hoisted(() => {
   const mockCreateAgentPane = vi.fn()
   const mockCmd = vi.fn().mockResolvedValue({ returnCode: 0, stdout: "", stderr: "" })
 
+  const mockGetPaneMeta = vi.fn()
+
   function MockRMUXManager() {
     return {
       isConnected: () => true,
@@ -18,6 +20,7 @@ const rmuxMocks = vi.hoisted(() => {
       getCurrentSessionName: vi.fn().mockResolvedValue("test-rmux"),
       getClient: () => null,
       captureTarget: vi.fn(),
+      getPaneMeta: mockGetPaneMeta,
       closeTarget: vi.fn(async (target: string) => {
         return mockCmd("kill-pane", "-t", target)
       }),
@@ -26,7 +29,7 @@ const rmuxMocks = vi.hoisted(() => {
     }
   }
 
-  return { MockRMUXManager, mockSendTextToPane, mockGetSession, mockCreateAgentPane, mockCmd }
+  return { MockRMUXManager, mockSendTextToPane, mockGetSession, mockCreateAgentPane, mockCmd, mockGetPaneMeta }
 })
 
 vi.mock("../rmux.js", () => ({
@@ -51,7 +54,6 @@ function testConfig(overrides: Record<string, any> = {}): Record<string, any> {
     splits: true,
     splitSize: "30%",
     keepPaneOnIdle: false,
-    maxPanes: 4,
     debug: false,
     notifications: { done: true, permission: true, question: true, error: true },
     ...overrides,
@@ -202,5 +204,117 @@ describe("SessionManager", () => {
     await sm.handleEvent({ type: "permission.asked", properties: { id: "perm-1" } })
 
     expect(sm.hasPendingInput()).toBe(true)
+  })
+
+  it("skips nested subagent chains (parent is itself a subagent)", async () => {
+    const { resolveServerUrlWithRetry } = await import("../lsof.js")
+    vi.mocked(resolveServerUrlWithRetry).mockResolvedValue("http://localhost:4096")
+
+    const mockPane = { sendText: vi.fn(), close: vi.fn(), select: vi.fn(), target: "test:0.1" }
+    rmuxMocks.mockCreateAgentPane.mockResolvedValue(mockPane)
+    rmuxMocks.mockGetSession.mockResolvedValue({
+      name: "test-rmux",
+      window: vi.fn().mockReturnValue({
+        panes: vi.fn().mockResolvedValue([{ target: "test-rmux:0.0" }]),
+      }),
+    })
+
+    const mgr = new rmuxMocks.MockRMUXManager()
+    const sm = await createSM(mgr, testConfig())
+
+    await sm.handleEvent({
+      type: "session.created",
+      properties: { info: { id: "subagent-A", parentID: "main-session" } },
+    })
+
+    await sm.handleEvent({
+      type: "session.created",
+      properties: { info: { id: "nested-B", parentID: "subagent-A" } },
+    })
+
+    await sm.handleEvent({
+      type: "session.created",
+      properties: { info: { id: "nested-C", parentID: "nested-B" } },
+    })
+
+    expect(rmuxMocks.mockCreateAgentPane).toHaveBeenCalledTimes(1)
+    expect(rmuxMocks.mockCreateAgentPane).toHaveBeenCalledWith(
+      expect.objectContaining({ name: "test-rmux" }),
+      "opencode attach http://localhost:4096 --session subagent-A",
+      "30%",
+    )
+  })
+
+  it("cleans up dead orphaned pane before creating new subagent pane", async () => {
+    const { resolveServerUrlWithRetry } = await import("../lsof.js")
+    vi.mocked(resolveServerUrlWithRetry).mockResolvedValue("http://localhost:4096")
+
+    const mockPane1 = { sendText: vi.fn(), close: vi.fn(), select: vi.fn(), target: "test:0.1" }
+    const mockPane2 = { sendText: vi.fn(), close: vi.fn(), select: vi.fn(), target: "test:0.2" }
+    rmuxMocks.mockCreateAgentPane.mockResolvedValueOnce(mockPane1)
+    rmuxMocks.mockCreateAgentPane.mockResolvedValueOnce(mockPane2)
+    rmuxMocks.mockGetSession.mockResolvedValue({
+      name: "test-rmux",
+      window: vi.fn().mockReturnValue({
+        panes: vi.fn().mockResolvedValue([{ target: "test-rmux:0.0" }]),
+      }),
+    })
+
+    const mgr = new rmuxMocks.MockRMUXManager()
+    const sm = await createSM(mgr, testConfig())
+
+    await sm.handleEvent({
+      type: "session.created",
+      properties: { info: { id: "subagent-A", parentID: "main-session" } },
+    })
+
+    rmuxMocks.mockGetPaneMeta.mockResolvedValue({
+      dead: true, sessionName: "test-rmux", windowIndex: 0, paneIndex: 1,
+      paneId: "%45", active: false, width: 50, height: 20,
+      paneLeft: 120, paneTop: 0, deadStatus: 0, pid: null,
+      title: "", currentCommand: "",
+    })
+
+    await sm.handleEvent({
+      type: "session.created",
+      properties: { info: { id: "subagent-B", parentID: "main-session" } },
+    })
+
+    expect(rmuxMocks.mockCreateAgentPane).toHaveBeenCalledTimes(2)
+    expect(rmuxMocks.mockCmd).toHaveBeenCalledWith("kill-pane", "-t", "test:0.1")
+  })
+
+  it("handles getPaneMeta error during orphaned pane cleanup gracefully", async () => {
+    const { resolveServerUrlWithRetry } = await import("../lsof.js")
+    vi.mocked(resolveServerUrlWithRetry).mockResolvedValue("http://localhost:4096")
+
+    const mockPane1 = { sendText: vi.fn(), close: vi.fn(), select: vi.fn(), target: "test:0.1" }
+    const mockPane2 = { sendText: vi.fn(), close: vi.fn(), select: vi.fn(), target: "test:0.2" }
+    rmuxMocks.mockCreateAgentPane.mockResolvedValueOnce(mockPane1)
+    rmuxMocks.mockCreateAgentPane.mockResolvedValueOnce(mockPane2)
+    rmuxMocks.mockGetSession.mockResolvedValue({
+      name: "test-rmux",
+      window: vi.fn().mockReturnValue({
+        panes: vi.fn().mockResolvedValue([{ target: "test-rmux:0.0" }]),
+      }),
+    })
+
+    const mgr = new rmuxMocks.MockRMUXManager()
+    const sm = await createSM(mgr, testConfig())
+
+    await sm.handleEvent({
+      type: "session.created",
+      properties: { info: { id: "subagent-A", parentID: "main-session" } },
+    })
+
+    rmuxMocks.mockGetPaneMeta.mockRejectedValue(new Error("pane not found"))
+
+    await sm.handleEvent({
+      type: "session.created",
+      properties: { info: { id: "subagent-B", parentID: "main-session" } },
+    })
+
+    expect(rmuxMocks.mockCreateAgentPane).toHaveBeenCalledTimes(2)
+    expect(rmuxMocks.mockCmd).not.toHaveBeenCalledWith("kill-pane", "-t", "test:0.1")
   })
 })

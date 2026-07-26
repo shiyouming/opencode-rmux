@@ -49,7 +49,7 @@
 | **macOS**      | ✅  | ✅ | ✅ 原生 |
 | **Linux**      | ❌  | ✅ | ✅ 原生 |
 | **TypeScript SDK** | ❌ 命令行解析 | ❌ 命令行解析 | ✅ 官方 TypeScript SDK |
-| **子代理面板**  | ✅ 3 面板上限 | ✅ 无限制 | ✅ 可配置上限，自动回收 |
+| **子代理面板**  | ✅ 3 面板上限 | ✅ 无限制 | ✅ 自动管理（空闲自动关闭） |
 | **AI 控制工具** | ❌  | ⚠️ 部分 | ✅ **12 个专有工具** |
 | **面板元数据**  | ❌  | ❌ | ✅ PID/命令/尺寸等详情 |
 | **面板搜索**    | ❌  | ❌ | ✅ 按会话/命令/状态筛选 |
@@ -152,7 +152,6 @@ Remove-Item -Recurse -Force "$env:LOCALAPPDATA\opencode\cache\packages\opencode-
   "splits": true,
   "splitSize": "30%",
   "keepPaneOnIdle": false,
-  "maxPanes": 4,
   "debug": false,
   "notifications": {
     "done": true,
@@ -166,9 +165,8 @@ Remove-Item -Recurse -Force "$env:LOCALAPPDATA\opencode\cache\packages\opencode-
 | 选项 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
 | `splits` | boolean | `true` | 启用子代理面板 |
-| `splitSize` | string | `"30%"` | 右侧面板宽度，如 `"30%"` `"50%"` `"300px"` |
+| `splitSize` | string | `"30%"` | 右侧面板宽度，如 `"30%"` `"50%"` |
 | `keepPaneOnIdle` | boolean | `false` | 子代理完成后保留面板（不自动关闭） |
-| `maxPanes` | number | `4` | 面板上限，超限自动回收最旧的那个 |
 | `debug` | boolean | `false` | 调试日志输出到 stderr |
 | `notifications.done` | boolean | `true` | 子代理完成通知 |
 | `notifications.permission` | boolean | `true` | 权限请求通知 |
@@ -192,7 +190,6 @@ Remove-Item -Recurse -Force "$env:LOCALAPPDATA\opencode\cache\packages\opencode-
 - **首个子代理**：水平分屏，右侧面板（默认 30% 宽度，可通过 `splitSize` 调整）
 - **后续子代理**：从最后一个面板垂直分割，向下堆叠
 - **高度平衡**：每次新分裂后自动用 `resize-pane` 将所有右侧面板设为等高
-- **自动回收**：达到 `maxPanes` 上限时，强制关闭最旧的面板，新面板替代其位置
 - **完成清理**：`keepPaneOnIdle: false` 时，子代理完成立即关闭面板
 
 ---
@@ -228,6 +225,8 @@ Remove-Item -Recurse -Force "$env:LOCALAPPDATA\opencode\cache\packages\opencode-
 | 子代理出错 | 关闭面板，显示错误 |
 | AI 请求权限 | 通知你，等待处理 |
 | AI 提问 | 通知你，等待回复 |
+
+> 子代理不会触发 `session.deleted` 事件 — 面板清理完全依赖 `session.status` idle
 
 ---
 
@@ -273,7 +272,7 @@ Remove-Item -Recurse -Force "$env:LOCALAPPDATA\opencode\cache\packages\opencode-
 ```bash
 npm install       # 安装依赖
 npm run typecheck # tsc --noEmit
-npm test          # 运行测试（106 个用例）
+npm test          # 运行测试（109 个用例）
 npm run build     # 构建 dist/
 ```
 
