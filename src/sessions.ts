@@ -1,7 +1,7 @@
 import { request } from "node:http"
 import type { RMUXPluginConfig } from "./config.js"
 import { RMUXManager } from "./rmux.js"
-import { resolveServerUrlWithRetry } from "./lsof.js"
+import { resolveServerUrl, resolveServerUrlWithRetry } from "./lsof.js"
 import type { PermissionState, QuestionState } from "./state.js"
 
 
@@ -178,8 +178,10 @@ export class SessionManager {
     const info = properties.info
     if (!info?.parentID || !this.config.splits) return
     if (process.env.OPENCODE_RMUX_DISABLE_SPLITS) return
+    if (!this.rmux.isConnected()) return
 
-    const rawUrl = await resolveServerUrlWithRetry()
+    let rawUrl = await resolveServerUrl()
+    if (!rawUrl) rawUrl = await resolveServerUrlWithRetry()
     if (!rawUrl) return
     if (!(await serverAvailable(rawUrl))) return
 

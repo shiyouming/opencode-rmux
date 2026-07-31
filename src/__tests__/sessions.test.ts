@@ -113,10 +113,24 @@ describe("SessionManager", () => {
 
   it("skips subagent splits when splits disabled", async () => {
     const { resolveServerUrl } = await import("../lsof.js")
-    vi.mocked(resolveServerUrl).mockReturnValue("http://localhost:4096")
+    vi.mocked(resolveServerUrl).mockResolvedValue("http://localhost:4096")
 
     const mgr = new rmuxMocks.MockRMUXManager()
     const sm = await createSM(mgr, testConfig({ splits: false }))
+
+    await sm.handleEvent({
+      type: "session.created",
+      properties: { info: { id: "sub-456", parentID: "parent-123" } },
+    })
+
+    expect(rmuxMocks.mockCreateAgentPane).not.toHaveBeenCalled()
+  })
+
+  it("skips subagent splits when RMUX not connected", async () => {
+    const mgr = new rmuxMocks.MockRMUXManager()
+    mgr.isConnected = () => false
+
+    const sm = await createSM(mgr, testConfig())
 
     await sm.handleEvent({
       type: "session.created",

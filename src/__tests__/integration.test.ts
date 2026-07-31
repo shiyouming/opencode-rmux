@@ -75,8 +75,8 @@ vi.mock("@rmux/sdk", () => ({
 }))
 
 vi.mock("../lsof.js", () => ({
-  resolveServerUrl: vi.fn(() => "http://localhost:12345"),
-  resolveServerUrlWithRetry: vi.fn(() => Promise.resolve("http://localhost:12345")),
+  resolveServerUrl: vi.fn(async () => "http://localhost:12345"),
+  resolveServerUrlWithRetry: vi.fn(async () => "http://localhost:12345"),
 }))
 
 vi.mock("node:http", () => ({
@@ -425,9 +425,14 @@ describe("Integration: Plugin entry point", () => {
     }
   })
 
+  async function flushConnect(): Promise<void> {
+    await new Promise(r => setTimeout(r, 0))
+  }
+
   it("creates plugin with RMUX connected and exports event + tool", async () => {
     const plugin = await import("../index.js")
     const instance = await plugin.default()
+    await flushConnect()
 
     expect(instance).toHaveProperty("event")
     expect(instance).toHaveProperty("tool")
@@ -445,6 +450,7 @@ describe("Integration: Plugin entry point", () => {
   it("routes events through plugin interface", async () => {
     const plugin = await import("../index.js")
     const instance = await plugin.default()
+    await flushConnect()
 
     await instance.event({ event: { type: "permission.asked", properties: { id: "p1" } } })
     await instance.event({ event: { type: "permission.replied", properties: { id: "p1" } } })
@@ -459,6 +465,7 @@ describe("Integration: Plugin entry point", () => {
 
     const plugin = await import("../index.js")
     const instance = await plugin.default()
+    await flushConnect()
 
     const result = await instance.tool.rmux_list_sessions.execute({}, {})
     expect(result).toContain("s1")
@@ -471,6 +478,7 @@ describe("Integration: Plugin entry point", () => {
 
     const plugin = await import("../index.js")
     const instance = await plugin.default()
+    await flushConnect()
 
     const result = await instance.tool.rmux_list_sessions.execute({}, {})
     expect(result).toContain("not connected")

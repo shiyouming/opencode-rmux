@@ -8,12 +8,18 @@ export class RMUXManager {
   private client: RMUX | null = null
 
   async connect(): Promise<boolean> {
+    let timer: ReturnType<typeof setTimeout> | undefined
     try {
-      this.client = await RMUX.builder().connectOrStart()
+      const timeout = new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new Error("RMUX connect timed out")), 5000)
+      })
+      this.client = await Promise.race([RMUX.builder().connectOrStart(), timeout])
       return true
     } catch {
       this.client = null
       return false
+    } finally {
+      if (timer) clearTimeout(timer)
     }
   }
 

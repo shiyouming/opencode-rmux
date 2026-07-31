@@ -4,6 +4,7 @@ import { RMUXManager } from "./rmux.js"
 import { SessionManager, type SessionEvent } from "./sessions.js"
 import { createTools } from "./tools.js"
 import { PermissionState, QuestionState } from "./state.js"
+import { resolveServerUrlWithRetry } from "./lsof.js"
 
 const plugin: Plugin = async () => {
   const config: RMUXPluginConfig = loadConfig()
@@ -12,11 +13,13 @@ const plugin: Plugin = async () => {
   const question = new QuestionState()
   const sessionManager = new SessionManager(rmux, config, permission, question)
 
-  const connected = await rmux.connect()
+  rmux.connect().then(connected => {
+    if (!connected) {
+      console.warn("[opencode-rmux] RMUX daemon not available — install rmux (https://rmux.io) for full functionality")
+    }
+  })
 
-  if (!connected) {
-    console.warn("[opencode-rmux] RMUX daemon not available — install rmux (https://rmux.io) for full functionality")
-  }
+  resolveServerUrlWithRetry().catch(() => {})
 
   return {
     async event({ event: rawEvent }) {
